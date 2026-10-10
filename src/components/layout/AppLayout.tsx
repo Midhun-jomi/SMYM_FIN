@@ -37,32 +37,38 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] flex flex-col text-slate-900 dark:text-slate-100 transition-colors">
-      <DemoBanner
-        currentUser={currentUser}
-        onRoleChange={handleRoleChange}
-        isMock={isMock}
-      />
-
-      <Navbar
-        currentUser={currentUser}
-        onOpenNewTransaction={onOpenNewTransaction}
-        mobileMenuOpen={mobileMenuOpen}
-        setMobileMenuOpen={setMobileMenuOpen}
-      />
-
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        <Sidebar
-          mobileOpen={mobileMenuOpen}
-          onCloseMobile={() => setMobileMenuOpen(false)}
+      <div className="no-print">
+        <DemoBanner
           currentUser={currentUser}
+          onRoleChange={handleRoleChange}
+          isMock={isMock}
         />
+      </div>
 
-        <main className="flex-1 min-w-0 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <div className="no-print">
+        <Navbar
+          currentUser={currentUser}
+          onOpenNewTransaction={onOpenNewTransaction}
+          mobileMenuOpen={mobileMenuOpen}
+          setMobileMenuOpen={setMobileMenuOpen}
+        />
+      </div>
+
+      <div className="flex-1 flex max-w-7xl w-full mx-auto print:max-w-full print:m-0 print:p-0">
+        <div className="no-print">
+          <Sidebar
+            mobileOpen={mobileMenuOpen}
+            onCloseMobile={() => setMobileMenuOpen(false)}
+            currentUser={currentUser}
+          />
+        </div>
+
+        <main className="flex-1 min-w-0 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 print:p-0 print:m-0 print:max-w-full print:w-full">
           <Outlet />
         </main>
       </div>
 
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
+      <footer className="no-print bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
             © {new Date().getFullYear()} <span className="font-semibold text-slate-700 dark:text-slate-200">SMYM FIN</span> — Church Society Financial Transparency & Management.

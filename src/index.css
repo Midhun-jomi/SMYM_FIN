@@ -56,3 +56,81 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+/* ==========================================================================
+   Print Optimization for Official Financial Statements & Reports
+   ========================================================================== */
+@media print {
+  /* Hide all interactive web elements, app chrome, navigation, buttons */
+  header,
+  aside,
+  nav,
+  button,
+  .no-print,
+  #googleSignInBtnContainer,
+  [role="banner"],
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  /* Reset document canvas to pure white with sharp typography */
+  html, body, .dark body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Full width main container */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Clean up cards, borders, and shadows in print */
+  .print-clean {
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  /* Page breaks and layout containment */
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force table formatting for financial statements */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 8.5pt !important;
+  }
+
+  th, td {
+    padding: 5px 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+  }
+
+  th {
+    background-color: #f8fafc !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 7.5pt !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 1.2cm 1cm 1.2cm 1cm;
+  }
+}
