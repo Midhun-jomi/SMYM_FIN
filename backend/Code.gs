@@ -41,7 +41,15 @@ function doGet(e) {
 
     if (action === "getEvents") {
       const data = getSheetData(ss, SHEET_NAMES.EVENTS);
-      return jsonResponse(data);
+      const enhanced = data.map(function(ev) {
+        var inc = Number(ev.total_income) || 0;
+        var exp = Number(ev.total_expense) || 0;
+        ev.total_income = inc;
+        ev.total_expense = exp;
+        ev.net_balance = inc - exp;
+        return ev;
+      });
+      return jsonResponse(enhanced);
     }
 
     if (action === "getUsers") {
@@ -70,7 +78,15 @@ function doGet(e) {
       const transactions = getSheetData(ss, SHEET_NAMES.TRANSACTIONS);
       const accounts = getSheetData(ss, SHEET_NAMES.ACCOUNTS);
       const bills = getSheetData(ss, SHEET_NAMES.BILLS);
-      const events = getSheetData(ss, SHEET_NAMES.EVENTS);
+      const rawEvents = getSheetData(ss, SHEET_NAMES.EVENTS);
+      const events = rawEvents.map(function(ev) {
+        var inc = Number(ev.total_income) || 0;
+        var exp = Number(ev.total_expense) || 0;
+        ev.total_income = inc;
+        ev.total_expense = exp;
+        ev.net_balance = inc - exp;
+        return ev;
+      });
 
       return jsonResponse({
         transactions,

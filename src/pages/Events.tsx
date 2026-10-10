@@ -3,7 +3,7 @@ import { Calendar, TrendingUp, TrendingDown, PlusCircle } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { EventItem, User } from '../types';
+import { EventItem, Transaction, User } from '../types';
 import { api } from '../services/api';
 import { formatINR } from '../utils/currency';
 import { formatDate } from '../utils/date';
@@ -15,12 +15,17 @@ interface EventsPageProps {
 
 export const Events: React.FC<EventsPageProps> = ({ currentUser }) => {
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const fetchEvents = async () => {
     try {
-      const data = await api.getEvents();
-      setEvents(data);
+      const [eventsData, txnsData] = await Promise.all([
+        api.getEvents(),
+        api.getTransactions(),
+      ]);
+      setEvents(eventsData);
+      setTransactions(txnsData);
     } catch (err) {
       console.error('Failed to fetch events', err);
     }
@@ -58,7 +63,22 @@ export const Events: React.FC<EventsPageProps> = ({ currentUser }) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {events.map((ev) => {
-          const isProfitable = ev.net_balance >= 0;
+          // Cross-reference linked transactions for canonical collections and disbursements
+          const eventTxns = transactions.filter(
+            (t) => t.event_id === ev.event_id && t.status !== 'VOID'
+          );
+          const txIncome = eventTxns
+            .filter((t) => t.type === 'INCOME')
+            .reduce((sum, t) => sum + t.amount, 0);
+          const txExpense = eventTxns
+            .filter((t) => t.type === 'EXPENSE')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          const collections = eventTxns.length > 0 ? txIncome : (Number(ev.total_income) || 0);
+          const spent = eventTxns.length > 0 ? txExpense : (Number(ev.total_expense) || 0);
+          const diff = collections - spent;
+          const isProfit = diff >= 0;
+
           return (
             <Card key={ev.event_id} hoverable className="flex flex-col justify-between">
               <div>
@@ -90,23 +110,25 @@ export const Events: React.FC<EventsPageProps> = ({ currentUser }) => {
                     <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
                       <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Total Collections:
                     </span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatINR(ev.total_income)}</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatINR(collections)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
                       <TrendingDown className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" /> Total Spent:
                     </span>
-                    <span className="font-bold text-rose-600 dark:text-rose-400">{formatINR(ev.total_expense)}</span>
+                    <span className="font-bold text-rose-600 dark:text-rose-400">{formatINR(spent)}</span>
                   </div>
                   <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">Profit / Loss:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {isProfit ? 'Profit:' : 'Loss:'}
+                    </span>
                     <span
                       className={`font-extrabold font-mono text-sm ${
-                        isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                        isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                       }`}
                     >
-                      {isProfitable ? '+' : ''}
-                      {formatINR(ev.net_balance)}
+                      {isProfit ? '+' : '-'}
+                      {formatINR(Math.abs(diff))}
                     </span>
                   </div>
                 </div>

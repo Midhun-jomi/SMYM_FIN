@@ -189,7 +189,17 @@ export const api = {
       const bills: Bill[] = rawBills.length > 0 ? rawBills : MOCK_BILLS;
 
       const rawEvents = Array.isArray(result.events) ? result.events : [];
-      const events: EventItem[] = rawEvents.length > 0 ? rawEvents : MOCK_EVENTS;
+      const events: EventItem[] = (rawEvents.length > 0 ? rawEvents : MOCK_EVENTS).map((ev: any) => {
+        const total_income = Number(ev.total_income) || 0;
+        const total_expense = Number(ev.total_expense) || 0;
+        return {
+          ...ev,
+          budget: Number(ev.budget) || 0,
+          total_income,
+          total_expense,
+          net_balance: total_income - total_expense,
+        };
+      });
 
       const summary = calculateFinancialSummary(txns, accs, bills, events.length);
 
@@ -335,17 +345,31 @@ export const api = {
   },
 
   async getEvents(): Promise<EventItem[]> {
+    const normalize = (list: any[]): EventItem[] =>
+      list.map((ev) => {
+        const total_income = Number(ev.total_income) || 0;
+        const total_expense = Number(ev.total_expense) || 0;
+        return {
+          ...ev,
+          budget: Number(ev.budget) || 0,
+          total_income,
+          total_expense,
+          net_balance: total_income - total_expense,
+        };
+      });
+
     if (this.isMockMode()) {
-      return loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS);
+      return normalize(loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS));
     }
     try {
       const response = await fetch(`${APPS_SCRIPT_URL}?action=getEvents`);
       if (!response.ok) throw new Error('Failed to fetch events');
       const data = await response.json();
-      return Array.isArray(data) && data.length > 0 ? data : MOCK_EVENTS;
+      const list = Array.isArray(data) && data.length > 0 ? data : MOCK_EVENTS;
+      return normalize(list);
     } catch (err) {
       console.warn('Failed to fetch live events, using cached:', err);
-      return loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS);
+      return normalize(loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS));
     }
   },
 
