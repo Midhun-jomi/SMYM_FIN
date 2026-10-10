@@ -87,10 +87,6 @@ export const Events: React.FC<EventsPageProps> = ({ currentUser }) => {
 
                 <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 dark:text-slate-400">Allocated Budget:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{formatINR(ev.budget)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
                     <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
                       <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Total Collections:
                     </span>
@@ -103,7 +99,7 @@ export const Events: React.FC<EventsPageProps> = ({ currentUser }) => {
                     <span className="font-bold text-rose-600 dark:text-rose-400">{formatINR(ev.total_expense)}</span>
                   </div>
                   <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">Net Surplus / (Deficit):</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">Profit / Loss:</span>
                     <span
                       className={`font-extrabold font-mono text-sm ${
                         isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
