@@ -6,9 +6,6 @@
  * - Who has access: Anyone
  */
 
-// Replace with your Google Spreadsheet ID (from docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit)
-const SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet() ? SpreadsheetApp.getActiveSpreadsheet().getId() : "";
-
 const SHEET_NAMES = {
   TRANSACTIONS: "Transactions",
   ACCOUNTS: "Accounts",
@@ -20,11 +17,11 @@ const SHEET_NAMES = {
 };
 
 /**
- * Handles HTTP GET requests for public data access
+ * Handles HTTP GET requests for public data access and RPC calls
  */
 function doGet(e) {
   try {
-    const action = e.parameter.action || "getDashboard";
+    const action = (e && e.parameter && e.parameter.action) ? e.parameter.action : "getDashboard";
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     if (action === "getTransactions") {
@@ -61,6 +58,21 @@ function doGet(e) {
       });
     }
 
+    // Support GET-based mutation fallback for browsers with strict redirect handling
+    if (action === "addTransaction" && e.parameter.payload) {
+      const txn = JSON.parse(decodeURIComponent(e.parameter.payload));
+      return executeAddTransaction(ss, txn);
+    }
+
+    if (action === "voidTransaction" && e.parameter.transactionId) {
+      return executeVoidTransaction(ss, e.parameter.transactionId, e.parameter.actor || "admin");
+    }
+
+    if (action === "seedInitialAccounts") {
+      seedAccountsIfEmpty(ss);
+      return jsonResponse({ success: true, message: "Initial society accounts created." });
+    }
+
     return jsonResponse({ error: "Unknown action" }, 400);
   } catch (err) {
     return jsonResponse({ error: err.toString() }, 500);
@@ -73,71 +85,28 @@ function doGet(e) {
 function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
-    // Acquire lock for concurrency safety (timeout 10s)
     lock.waitLock(10000);
 
-    const body = JSON.parse(e.postData.contents);
-    const action = body.action;
+    const contents = (e && e.postData && e.postData.contents) ? e.postData.contents : "";
+    let body = {};
+    try {
+      body = contents ? JSON.parse(contents) : {};
+    } catch (parseErr) {
+      body = {};
+    }
+
+    const action = body.action || (e && e.parameter ? e.parameter.action : "");
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     if (action === "addTransaction") {
-      const txn = body.data;
-      if (!txn.amount || txn.amount <= 0 || !txn.description || !txn.type) {
-        return jsonResponse({ error: "Validation failed: Invalid transaction payload." }, 400);
-      }
-
-      const sheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
-      const newId = txn.transaction_id || "txn_" + new Date().getTime();
-      const createdAt = new Date().toISOString();
-
-      sheet.appendRow([
-        newId,
-        txn.date,
-        txn.type,
-        txn.description,
-        txn.category,
-        txn.amount,
-        txn.account_id,
-        txn.payment_method,
-        txn.event_id || "",
-        txn.reference_id || "",
-        "COMPLETED",
-        txn.created_by || "anonymous",
-        createdAt,
-        "",
-        ""
-      ]);
-
-      // Record in Audit Log
-      recordAudit(ss, txn.created_by || "system", "CREATE", "TRANSACTION", newId, "Created " + txn.type + " of ₹" + txn.amount);
-
-      return jsonResponse({ success: true, transaction_id: newId });
+      const txn = body.data || body;
+      return executeAddTransaction(ss, txn);
     }
 
     if (action === "voidTransaction") {
-      const idToVoid = body.transactionId;
+      const idToVoid = body.transactionId || (e && e.parameter ? e.parameter.transactionId : "");
       const actor = body.actor || "admin";
-      const sheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
-      const data = sheet.getDataRange().getValues();
-
-      let found = false;
-      for (let i = 1; i < data.length; i++) {
-        if (data[i][0] === idToVoid) {
-          // Status column index is 10 (0-indexed: column K)
-          sheet.getRange(i + 1, 11).setValue("VOID");
-          sheet.getRange(i + 1, 14).setValue(actor);
-          sheet.getRange(i + 1, 15).setValue(new Date().toISOString());
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        return jsonResponse({ error: "Transaction not found." }, 404);
-      }
-
-      recordAudit(ss, actor, "VOID", "TRANSACTION", idToVoid, "Voided transaction " + idToVoid);
-      return jsonResponse({ success: true, voided: idToVoid });
+      return executeVoidTransaction(ss, idToVoid, actor);
     }
 
     return jsonResponse({ error: "Unknown action" }, 400);
@@ -145,6 +114,109 @@ function doPost(e) {
     return jsonResponse({ error: err.toString() }, 500);
   } finally {
     lock.releaseLock();
+  }
+}
+
+/**
+ * Appends a new verified transaction record
+ */
+function executeAddTransaction(ss, txn) {
+  if (!txn.amount || Number(txn.amount) <= 0 || !txn.description || !txn.type) {
+    return jsonResponse({ error: "Validation failed: Invalid transaction payload." }, 400);
+  }
+
+  const sheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
+  if (!sheet) {
+    return jsonResponse({ error: "Transactions sheet not found. Run initializeDatabaseTabs() first." }, 500);
+  }
+
+  const newId = txn.transaction_id || "txn_" + new Date().getTime();
+  const createdAt = new Date().toISOString();
+
+  sheet.appendRow([
+    newId,
+    txn.date || new Date().toISOString().slice(0, 10),
+    txn.type,
+    txn.description,
+    txn.category || "General",
+    Number(txn.amount),
+    txn.account_id || "acc_01",
+    txn.payment_method || "BANK",
+    txn.event_id || "",
+    txn.reference_id || "",
+    "COMPLETED",
+    txn.created_by || "anonymous",
+    createdAt,
+    "",
+    ""
+  ]);
+
+  // Adjust account current balance in Accounts sheet
+  updateAccountBalance(ss, txn.account_id, txn.type, Number(txn.amount));
+
+  // Record audit log entry
+  recordAudit(ss, txn.created_by || "system", "CREATE", "TRANSACTION", newId, "Created " + txn.type + " of ₹" + txn.amount + ": " + txn.description);
+
+  return jsonResponse({ success: true, transaction_id: newId });
+}
+
+/**
+ * Updates status of transaction to VOID
+ */
+function executeVoidTransaction(ss, idToVoid, actor) {
+  const sheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
+  if (!sheet) return jsonResponse({ error: "Transactions sheet not found." }, 500);
+
+  const data = sheet.getDataRange().getValues();
+  let found = false;
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === idToVoid) {
+      // Column 11 = status (K), Column 14 = updated_by (N), Column 15 = updated_at (O)
+      sheet.getRange(i + 1, 11).setValue("VOID");
+      sheet.getRange(i + 1, 14).setValue(actor);
+      sheet.getRange(i + 1, 15).setValue(new Date().toISOString());
+
+      // Reverse account balance adjustment
+      const txnType = data[i][2];
+      const amount = Number(data[i][5]);
+      const accountId = data[i][6];
+      const reverseType = txnType === "INCOME" ? "EXPENSE" : txnType === "EXPENSE" ? "INCOME" : "TRANSFER";
+      if (reverseType !== "TRANSFER") {
+        updateAccountBalance(ss, accountId, reverseType, amount);
+      }
+
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    return jsonResponse({ error: "Transaction not found: " + idToVoid }, 404);
+  }
+
+  recordAudit(ss, actor, "VOID", "TRANSACTION", idToVoid, "Voided transaction " + idToVoid);
+  return jsonResponse({ success: true, voided: idToVoid });
+}
+
+/**
+ * Updates current_balance in Accounts sheet based on movement
+ */
+function updateAccountBalance(ss, accountId, type, amount) {
+  if (!accountId || !amount) return;
+  const sheet = ss.getSheetByName(SHEET_NAMES.ACCOUNTS);
+  if (!sheet || sheet.getLastRow() <= 1) return;
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === accountId) {
+      const current = Number(data[i][4]) || 0;
+      let newBalance = current;
+      if (type === "INCOME") newBalance += amount;
+      if (type === "EXPENSE") newBalance -= amount;
+      sheet.getRange(i + 1, 5).setValue(newBalance);
+      break;
+    }
   }
 }
 
@@ -189,7 +261,7 @@ function recordAudit(ss, actor, action, entityType, entityId, details) {
 }
 
 /**
- * Returns formatted JSON response with CORS headers
+ * Returns formatted JSON response
  */
 function jsonResponse(data, statusCode) {
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -238,6 +310,18 @@ function initializeDatabaseTabs() {
   createTabWithHeaders(ss, SHEET_NAMES.SETTINGS, [
     "setting_key", "setting_value", "description"
   ]);
+
+  // Pre-seed accounts if empty
+  seedAccountsIfEmpty(ss);
+}
+
+function seedAccountsIfEmpty(ss) {
+  const accSheet = ss.getSheetByName(SHEET_NAMES.ACCOUNTS);
+  if (accSheet && accSheet.getLastRow() <= 1) {
+    accSheet.appendRow(["acc_01", "Federal Bank - Operating Account", "BANK", 150000, 150000, true]);
+    accSheet.appendRow(["acc_02", "Cash in Hand (Treasurer)", "CASH", 15000, 15000, true]);
+    accSheet.appendRow(["acc_03", "Youth Mission & Charity Fund", "BANK", 50000, 50000, true]);
+  }
 }
 
 function createTabWithHeaders(ss, name, headers) {
