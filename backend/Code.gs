@@ -58,7 +58,7 @@ function doGet(e) {
       });
     }
 
-    // Support GET-based mutation fallback for browsers with strict redirect handling
+    // Support GET-based mutation fallback
     if (action === "addTransaction" && e.parameter.payload) {
       const txn = JSON.parse(decodeURIComponent(e.parameter.payload));
       return executeAddTransaction(ss, txn);
@@ -66,6 +66,21 @@ function doGet(e) {
 
     if (action === "voidTransaction" && e.parameter.transactionId) {
       return executeVoidTransaction(ss, e.parameter.transactionId, e.parameter.actor || "admin");
+    }
+
+    if (action === "addBill" && e.parameter.payload) {
+      const bill = JSON.parse(decodeURIComponent(e.parameter.payload));
+      return executeAddBill(ss, bill);
+    }
+
+    if (action === "payBill" && e.parameter.payload) {
+      const payData = JSON.parse(decodeURIComponent(e.parameter.payload));
+      return executePayBill(ss, payData);
+    }
+
+    if (action === "addEvent" && e.parameter.payload) {
+      const evt = JSON.parse(decodeURIComponent(e.parameter.payload));
+      return executeAddEvent(ss, evt);
     }
 
     if (action === "seedInitialAccounts") {
@@ -107,6 +122,18 @@ function doPost(e) {
       const idToVoid = body.transactionId || (e && e.parameter ? e.parameter.transactionId : "");
       const actor = body.actor || "admin";
       return executeVoidTransaction(ss, idToVoid, actor);
+    }
+
+    if (action === "addBill") {
+      return executeAddBill(ss, body.data || body);
+    }
+
+    if (action === "payBill") {
+      return executePayBill(ss, body.data || body);
+    }
+
+    if (action === "addEvent") {
+      return executeAddEvent(ss, body.data || body);
     }
 
     return jsonResponse({ error: "Unknown action" }, 400);
@@ -154,6 +181,11 @@ function executeAddTransaction(ss, txn) {
   // Adjust account current balance in Accounts sheet
   updateAccountBalance(ss, txn.account_id, txn.type, Number(txn.amount));
 
+  // If linked to an event, update event totals
+  if (txn.event_id) {
+    updateEventTotals(ss, txn.event_id, txn.type, Number(txn.amount));
+  }
+
   // Record audit log entry
   recordAudit(ss, txn.created_by || "system", "CREATE", "TRANSACTION", newId, "Created " + txn.type + " of ₹" + txn.amount + ": " + txn.description);
 
@@ -172,7 +204,6 @@ function executeVoidTransaction(ss, idToVoid, actor) {
 
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === idToVoid) {
-      // Column 11 = status (K), Column 14 = updated_by (N), Column 15 = updated_at (O)
       sheet.getRange(i + 1, 11).setValue("VOID");
       sheet.getRange(i + 1, 14).setValue(actor);
       sheet.getRange(i + 1, 15).setValue(new Date().toISOString());
@@ -197,6 +228,156 @@ function executeVoidTransaction(ss, idToVoid, actor) {
 
   recordAudit(ss, actor, "VOID", "TRANSACTION", idToVoid, "Voided transaction " + idToVoid);
   return jsonResponse({ success: true, voided: idToVoid });
+}
+
+/**
+ * Adds a new Bill record
+ */
+function executeAddBill(ss, bill) {
+  if (!bill.bill_name || !bill.vendor || !bill.amount || Number(bill.amount) <= 0) {
+    return jsonResponse({ error: "Validation failed: Invalid bill payload." }, 400);
+  }
+
+  const sheet = ss.getSheetByName(SHEET_NAMES.BILLS);
+  if (!sheet) return jsonResponse({ error: "Bills sheet not found." }, 500);
+
+  const billId = bill.bill_id || "bill_" + new Date().getTime();
+  sheet.appendRow([
+    billId,
+    bill.bill_name,
+    bill.vendor,
+    Number(bill.amount),
+    Number(bill.paid_amount || 0),
+    bill.due_date || new Date().toISOString().slice(0, 10),
+    bill.category || "General",
+    bill.status || "PENDING",
+    bill.linked_transaction_id || "",
+    bill.notes || ""
+  ]);
+
+  recordAudit(ss, bill.created_by || "system", "CREATE", "BILL", billId, "Created bill: " + bill.bill_name + " (₹" + bill.amount + ")");
+  return jsonResponse({ success: true, bill_id: billId });
+}
+
+/**
+ * Records payment against a Bill and generates a linked transaction
+ */
+function executePayBill(ss, payData) {
+  const billId = payData.bill_id;
+  const payAmount = Number(payData.amount);
+  if (!billId || !payAmount || payAmount <= 0) {
+    return jsonResponse({ error: "Invalid payment amount or bill ID." }, 400);
+  }
+
+  const billSheet = ss.getSheetByName(SHEET_NAMES.BILLS);
+  if (!billSheet) return jsonResponse({ error: "Bills sheet not found." }, 500);
+
+  const data = billSheet.getDataRange().getValues();
+  let billRow = -1;
+  let billName = "";
+  let totalAmount = 0;
+  let currentPaid = 0;
+  let category = "General";
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === billId) {
+      billRow = i + 1;
+      billName = data[i][1];
+      totalAmount = Number(data[i][3]) || 0;
+      currentPaid = Number(data[i][4]) || 0;
+      category = data[i][6] || "General";
+      break;
+    }
+  }
+
+  if (billRow === -1) {
+    return jsonResponse({ error: "Bill not found: " + billId }, 404);
+  }
+
+  const newPaid = currentPaid + payAmount;
+  const newStatus = newPaid >= totalAmount ? "PAID" : "PARTIALLY_PAID";
+
+  // Generate payment expense transaction
+  const txnId = "txn_" + new Date().getTime();
+  const txnSheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
+  if (txnSheet) {
+    txnSheet.appendRow([
+      txnId,
+      payData.date || new Date().toISOString().slice(0, 10),
+      "EXPENSE",
+      "Payment for bill: " + billName,
+      category,
+      payAmount,
+      payData.account_id || "acc_01",
+      payData.payment_method || "BANK",
+      payData.event_id || "",
+      billId,
+      "COMPLETED",
+      payData.actor || "treasurer",
+      new Date().toISOString(),
+      "",
+      ""
+    ]);
+
+    updateAccountBalance(ss, payData.account_id || "acc_01", "EXPENSE", payAmount);
+  }
+
+  // Update Bill row: col 5 is paid_amount, col 8 is status, col 9 is linked_transaction_id
+  billSheet.getRange(billRow, 5).setValue(newPaid);
+  billSheet.getRange(billRow, 8).setValue(newStatus);
+  billSheet.getRange(billRow, 9).setValue(txnId);
+
+  recordAudit(ss, payData.actor || "system", "UPDATE", "BILL", billId, "Paid ₹" + payAmount + " for " + billName + ". New status: " + newStatus);
+
+  return jsonResponse({ success: true, bill_id: billId, transaction_id: txnId, new_status: newStatus, total_paid: newPaid });
+}
+
+/**
+ * Adds a new Event record
+ */
+function executeAddEvent(ss, evt) {
+  if (!evt.event_name || !evt.event_date) {
+    return jsonResponse({ error: "Validation failed: Event name and date required." }, 400);
+  }
+
+  const sheet = ss.getSheetByName(SHEET_NAMES.EVENTS);
+  if (!sheet) return jsonResponse({ error: "Events sheet not found." }, 500);
+
+  const eventId = evt.event_id || "evt_" + new Date().getTime();
+  sheet.appendRow([
+    eventId,
+    evt.event_name,
+    evt.event_date,
+    Number(evt.budget || 0),
+    0, // total_income
+    0, // total_expense
+    evt.status || "UPCOMING"
+  ]);
+
+  recordAudit(ss, evt.created_by || "system", "CREATE", "EVENT", eventId, "Created event: " + evt.event_name + " with budget ₹" + (evt.budget || 0));
+  return jsonResponse({ success: true, event_id: eventId });
+}
+
+/**
+ * Updates event totals when transactions are linked to it
+ */
+function updateEventTotals(ss, eventId, type, amount) {
+  const sheet = ss.getSheetByName(SHEET_NAMES.EVENTS);
+  if (!sheet || sheet.getLastRow() <= 1) return;
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === eventId) {
+      if (type === "INCOME") {
+        const currentIncome = Number(data[i][4]) || 0;
+        sheet.getRange(i + 1, 5).setValue(currentIncome + amount);
+      } else if (type === "EXPENSE") {
+        const currentExpense = Number(data[i][5]) || 0;
+        sheet.getRange(i + 1, 6).setValue(currentExpense + amount);
+      }
+      break;
+    }
+  }
 }
 
 /**
@@ -288,7 +469,7 @@ function initializeDatabaseTabs() {
 
   // 3. Bills
   createTabWithHeaders(ss, SHEET_NAMES.BILLS, [
-    "bill_id", "bill_name", "vendor", "amount", "due_date", "category", "status", "linked_transaction_id", "notes"
+    "bill_id", "bill_name", "vendor", "amount", "paid_amount", "due_date", "category", "status", "linked_transaction_id", "notes"
   ]);
 
   // 4. Events

@@ -1,31 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, AlertCircle, Calendar, AlertTriangle } from 'lucide-react';
+import { FileText, AlertCircle, Calendar, AlertTriangle, PlusCircle, CreditCard } from 'lucide-react';
 import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { StatCard } from '../components/dashboard/StatCard';
-import { Bill, BillStatus, User } from '../types';
+import { Bill, BillStatus, Account, User } from '../types';
 import { api } from '../services/api';
 import { formatINR } from '../utils/currency';
 import { formatDate, isPastDate } from '../utils/date';
+import { BillFormModal } from '../components/forms/BillFormModal';
+import { PayBillModal } from '../components/forms/PayBillModal';
 
 interface BillsPageProps {
   currentUser: User;
 }
 
-export const Bills: React.FC<BillsPageProps> = () => {
+export const Bills: React.FC<BillsPageProps> = ({ currentUser }) => {
   const [bills, setBills] = useState<Bill[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [statusFilter, setStatusFilter] = useState<'ALL' | BillStatus>('ALL');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedBillForPayment, setSelectedBillForPayment] = useState<Bill | null>(null);
+
+  const fetchAllData = async () => {
+    try {
+      const [billsData, accountsData] = await Promise.all([
+        api.getBills(),
+        api.getAccounts(),
+      ]);
+      setBills(billsData);
+      setAccounts(accountsData);
+    } catch (err) {
+      console.error('Failed to fetch bills or accounts', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchBills = async () => {
-      try {
-        const data = await api.getBills();
-        setBills(data);
-      } catch (err) {
-        console.error('Failed to fetch bills', err);
-      }
-    };
-    fetchBills();
+    fetchAllData();
   }, []);
 
   const totalOutstanding = bills
@@ -74,6 +85,19 @@ export const Bills: React.FC<BillsPageProps> = () => {
             Vendor invoices, stage contracts, sound equipment rent, and payment schedules.
           </p>
         </div>
+
+        {currentUser.role !== 'PUBLIC_VIEWER' && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Add Bill</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -169,12 +193,41 @@ export const Bills: React.FC<BillsPageProps> = () => {
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" /> Due: {formatDate(bill.due_date)}
                 </span>
-                <span className="text-slate-400 dark:text-slate-500 font-mono text-[11px]">{bill.category}</span>
+                
+                {currentUser.role !== 'PUBLIC_VIEWER' && remaining > 0 && bill.status !== 'CANCELLED' ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs py-1 px-2.5 h-auto font-medium text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    onClick={() => setSelectedBillForPayment(bill)}
+                  >
+                    <CreditCard className="h-3.5 w-3.5 mr-1" />
+                    Record Payment
+                  </Button>
+                ) : (
+                  <span className="text-slate-400 dark:text-slate-500 font-mono text-[11px]">{bill.category}</span>
+                )}
               </div>
             </Card>
           );
         })}
       </div>
+
+      {/* Bill Creation Modal */}
+      <BillFormModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={fetchAllData}
+      />
+
+      {/* Bill Payment Modal */}
+      <PayBillModal
+        isOpen={!!selectedBillForPayment}
+        bill={selectedBillForPayment}
+        accounts={accounts}
+        onClose={() => setSelectedBillForPayment(null)}
+        onSuccess={fetchAllData}
+      />
     </div>
   );
 };

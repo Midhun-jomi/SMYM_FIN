@@ -1,28 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, PlusCircle } from 'lucide-react';
 import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { EventItem, User } from '../types';
 import { api } from '../services/api';
 import { formatINR } from '../utils/currency';
 import { formatDate } from '../utils/date';
+import { EventFormModal } from '../components/forms/EventFormModal';
 
 interface EventsPageProps {
   currentUser: User;
 }
 
-export const Events: React.FC<EventsPageProps> = () => {
+export const Events: React.FC<EventsPageProps> = ({ currentUser }) => {
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const fetchEvents = async () => {
+    try {
+      const data = await api.getEvents();
+      setEvents(data);
+    } catch (err) {
+      console.error('Failed to fetch events', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const data = await api.getEvents();
-        setEvents(data);
-      } catch (err) {
-        console.error('Failed to fetch events', err);
-      }
-    };
     fetchEvents();
   }, []);
 
@@ -37,6 +41,19 @@ export const Events: React.FC<EventsPageProps> = () => {
             Budgeting and financial performance tracking for youth festivals, camps, and tournaments.
           </p>
         </div>
+
+        {currentUser.role !== 'PUBLIC_VIEWER' && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Create Event</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -100,7 +117,7 @@ export const Events: React.FC<EventsPageProps> = () => {
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
-                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 cursor-pointer">
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300">
                   Linked to society general ledger
                 </span>
               </div>
@@ -108,6 +125,13 @@ export const Events: React.FC<EventsPageProps> = () => {
           );
         })}
       </div>
+
+      {/* Event Creation Modal */}
+      <EventFormModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={fetchEvents}
+      />
     </div>
   );
 };

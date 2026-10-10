@@ -251,6 +251,136 @@ export const api = {
     }
   },
 
+  async addBill(bill: Omit<Bill, 'bill_id'>): Promise<Bill> {
+    const currentUser = this.getCurrentUser();
+    if (currentUser.role === 'PUBLIC_VIEWER') {
+      throw new Error('Permission denied: Public viewers cannot create bills.');
+    }
+
+    const newBill: Bill = {
+      ...bill,
+      bill_id: `bill_${Date.now()}`,
+    };
+
+    if (this.isMockMode()) {
+      const current = loadStored<Bill[]>(STORAGE_KEYS.BILLS, MOCK_BILLS);
+      const updated = [newBill, ...current];
+      saveStored(STORAGE_KEYS.BILLS, updated);
+      return newBill;
+    }
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'addBill', data: newBill }),
+      });
+      if (res.ok) return newBill;
+      throw new Error('POST failed');
+    } catch {
+      const encoded = encodeURIComponent(JSON.stringify(newBill));
+      await fetch(`${APPS_SCRIPT_URL}?action=addBill&payload=${encoded}`);
+      return newBill;
+    }
+  },
+
+  async payBill(data: {
+    bill_id: string;
+    amount: number;
+    account_id: string;
+    payment_method: string;
+    date: string;
+  }): Promise<void> {
+    const currentUser = this.getCurrentUser();
+    if (currentUser.role === 'PUBLIC_VIEWER') {
+      throw new Error('Permission denied: Public viewers cannot process payments.');
+    }
+
+    const payload = {
+      ...data,
+      actor: currentUser.email,
+    };
+
+    if (this.isMockMode()) {
+      const currentBills = loadStored<Bill[]>(STORAGE_KEYS.BILLS, MOCK_BILLS);
+      const updated = currentBills.map((b) => {
+        if (b.bill_id === data.bill_id) {
+          const newPaid = (b.paid_amount || 0) + data.amount;
+          const newStatus = newPaid >= b.amount ? ('PAID' as const) : ('PARTIALLY_PAID' as const);
+          return { ...b, paid_amount: newPaid, status: newStatus };
+        }
+        return b;
+      });
+      saveStored(STORAGE_KEYS.BILLS, updated);
+
+      const bill = currentBills.find((b) => b.bill_id === data.bill_id);
+      if (bill) {
+        await this.addTransaction({
+          date: data.date,
+          type: 'EXPENSE',
+          description: `Payment for bill: ${bill.bill_name}`,
+          category: bill.category,
+          amount: data.amount,
+          account_id: data.account_id,
+          payment_method: data.payment_method as any,
+          reference_id: bill.bill_id,
+          status: 'COMPLETED',
+          created_by: currentUser.email,
+        });
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'payBill', data: payload }),
+      });
+      if (res.ok) return;
+      throw new Error('POST failed');
+    } catch {
+      const encoded = encodeURIComponent(JSON.stringify(payload));
+      await fetch(`${APPS_SCRIPT_URL}?action=payBill&payload=${encoded}`);
+    }
+  },
+
+  async addEvent(event: Omit<EventItem, 'event_id' | 'total_income' | 'total_expense' | 'net_balance'>): Promise<EventItem> {
+    const currentUser = this.getCurrentUser();
+    if (currentUser.role === 'PUBLIC_VIEWER') {
+      throw new Error('Permission denied: Public viewers cannot create events.');
+    }
+
+    const newEvent: EventItem = {
+      ...event,
+      event_id: `evt_${Date.now()}`,
+      total_income: 0,
+      total_expense: 0,
+      net_balance: 0,
+    };
+
+    if (this.isMockMode()) {
+      const current = loadStored<EventItem[]>(STORAGE_KEYS.EVENTS, MOCK_EVENTS);
+      const updated = [newEvent, ...current];
+      saveStored(STORAGE_KEYS.EVENTS, updated);
+      return newEvent;
+    }
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'addEvent', data: newEvent }),
+      });
+      if (res.ok) return newEvent;
+      throw new Error('POST failed');
+    } catch {
+      const encoded = encodeURIComponent(JSON.stringify(newEvent));
+      await fetch(`${APPS_SCRIPT_URL}?action=addEvent&payload=${encoded}`);
+      return newEvent;
+    }
+  },
+
   getAvailableUsers(): User[] {
     return MOCK_USERS;
   },
