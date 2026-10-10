@@ -59,64 +59,80 @@ export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser })
 
   // Google Identity Services (GIS) One Tap / Button integration
   useEffect(() => {
-    if (window.google?.accounts?.id && GOOGLE_CLIENT_ID) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: async (response: any) => {
-            try {
-              const base64Url = response.credential.split('.')[1];
-              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-              const jsonPayload = decodeURIComponent(
-                atob(base64)
-                  .split('')
-                  .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                  .join('')
-              );
-              const profile = JSON.parse(jsonPayload);
-              const resolvedRole = await api.getUserRole(profile.email);
+    if (!GOOGLE_CLIENT_ID) return;
 
-              const authenticatedUser: User = {
-                user_id: profile.sub || `usr_${Date.now()}`,
-                email: profile.email,
-                display_name: profile.name || profile.email,
-                role: resolvedRole,
-                status: 'ACTIVE',
-              };
-
-              api.setCurrentUser(authenticatedUser);
-              setCurrentUser(authenticatedUser);
-
-              if (resolvedRole === 'PUBLIC_VIEWER') {
-                setLoginSuccess(
-                  `Signed in with ${profile.email}. You currently have Public Viewer access. Contact an Admin to grant Editor permissions.`
+    const renderGoogleBtn = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: async (response: any) => {
+              try {
+                const base64Url = response.credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(
+                  atob(base64)
+                    .split('')
+                    .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join('')
                 );
-              } else {
-                setLoginSuccess(
-                  `Welcome ${authenticatedUser.display_name}! Authenticated with role [${resolvedRole}].`
-                );
+                const profile = JSON.parse(jsonPayload);
+                const resolvedRole = await api.getUserRole(profile.email);
+
+                const authenticatedUser: User = {
+                  user_id: profile.sub || `usr_${Date.now()}`,
+                  email: profile.email,
+                  display_name: profile.name || profile.email,
+                  role: resolvedRole,
+                  status: 'ACTIVE',
+                };
+
+                api.setCurrentUser(authenticatedUser);
+                setCurrentUser(authenticatedUser);
+
+                if (resolvedRole === 'PUBLIC_VIEWER') {
+                  setLoginSuccess(
+                    `Signed in with ${profile.email}. You currently have Public Viewer access. Contact an Admin to grant Editor permissions.`
+                  );
+                } else {
+                  setLoginSuccess(
+                    `Welcome ${authenticatedUser.display_name}! Authenticated with role [${resolvedRole}].`
+                  );
+                }
+                setLoginError(null);
+              } catch (err) {
+                setLoginError('Failed to verify Google account credentials.');
               }
-              setLoginError(null);
-            } catch (err) {
-              setLoginError('Failed to verify Google account credentials.');
-            }
-          },
-        });
-
-        const btnContainer = document.getElementById('googleSignInBtnContainer');
-        if (btnContainer) {
-          btnContainer.innerHTML = '';
-          window.google.accounts.id.renderButton(btnContainer, {
-            theme: 'filled_blue',
-            size: 'large',
-            shape: 'pill',
-            text: 'signin_with',
-            width: 260,
+            },
           });
+
+          const btnContainer = document.getElementById('googleSignInBtnContainer');
+          if (btnContainer) {
+            btnContainer.innerHTML = '';
+            window.google.accounts.id.renderButton(btnContainer, {
+              theme: 'outline',
+              size: 'large',
+              shape: 'rectangular',
+              text: 'signin_with',
+              width: 260,
+            });
+          }
+        } catch (err) {
+          console.warn('GIS initialization error:', err);
         }
-      } catch (err) {
-        console.warn('GIS initialization error:', err);
       }
+    };
+
+    if (window.google?.accounts?.id) {
+      renderGoogleBtn();
+    } else {
+      const interval = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(interval);
+          renderGoogleBtn();
+        }
+      }, 250);
+      return () => clearInterval(interval);
     }
   }, [GOOGLE_CLIENT_ID]);
 
