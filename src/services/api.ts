@@ -84,19 +84,57 @@ export const api = {
       };
     }
 
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getDashboard`);
-    if (!response.ok) throw new Error('Failed to fetch dashboard data from Google Sheets');
-    const result = await response.json();
-    return { ...result, isDemo: false };
+    try {
+      const response = await fetch(`${APPS_SCRIPT_URL}?action=getDashboard`);
+      if (!response.ok) throw new Error(`Google Sheets API responded with status ${response.status}`);
+      const result = await response.json();
+      
+      const txns: Transaction[] = Array.isArray(result.transactions) ? result.transactions : [];
+      const accs: Account[] = Array.isArray(result.accounts) ? result.accounts : [];
+      const bills: Bill[] = Array.isArray(result.bills) ? result.bills : [];
+      const events: EventItem[] = Array.isArray(result.events) ? result.events : [];
+      const summary = calculateFinancialSummary(txns, accs, bills, events.length);
+
+      return {
+        summary,
+        transactions: txns,
+        accounts: accs,
+        bills,
+        events,
+        isDemo: false,
+      };
+    } catch (err) {
+      console.warn('Live Google Sheets endpoint error, falling back to cached demo data:', err);
+      // Fallback gracefully so the app stays functional while showing notice
+      const txns = loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS);
+      const accs = loadStored(STORAGE_KEYS.ACCOUNTS, MOCK_ACCOUNTS);
+      const bills = loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS);
+      const events = loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS);
+      const summary = calculateFinancialSummary(txns, accs, bills, events.length);
+      return {
+        summary,
+        transactions: txns,
+        accounts: accs,
+        bills,
+        events,
+        isDemo: true,
+      };
+    }
   },
 
   async getTransactions(): Promise<Transaction[]> {
     if (this.isMockMode()) {
       return loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS);
     }
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getTransactions`);
-    if (!response.ok) throw new Error('Failed to fetch transactions');
-    return response.json();
+    try {
+      const response = await fetch(`${APPS_SCRIPT_URL}?action=getTransactions`);
+      if (!response.ok) throw new Error('Failed to fetch transactions');
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('Failed to fetch live transactions, using cached:', err);
+      return loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS);
+    }
   },
 
   async addTransaction(txn: Omit<Transaction, 'transaction_id' | 'created_at'>): Promise<Transaction> {
@@ -155,24 +193,45 @@ export const api = {
     if (this.isMockMode()) {
       return loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS);
     }
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getBills`);
-    return response.json();
+    try {
+      const response = await fetch(`${APPS_SCRIPT_URL}?action=getBills`);
+      if (!response.ok) throw new Error('Failed to fetch bills');
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('Failed to fetch live bills, using cached:', err);
+      return loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS);
+    }
   },
 
   async getEvents(): Promise<EventItem[]> {
     if (this.isMockMode()) {
       return loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS);
     }
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getEvents`);
-    return response.json();
+    try {
+      const response = await fetch(`${APPS_SCRIPT_URL}?action=getEvents`);
+      if (!response.ok) throw new Error('Failed to fetch events');
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('Failed to fetch live events, using cached:', err);
+      return loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS);
+    }
   },
 
   async getAccounts(): Promise<Account[]> {
     if (this.isMockMode()) {
       return loadStored(STORAGE_KEYS.ACCOUNTS, MOCK_ACCOUNTS);
     }
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getAccounts`);
-    return response.json();
+    try {
+      const response = await fetch(`${APPS_SCRIPT_URL}?action=getAccounts`);
+      if (!response.ok) throw new Error('Failed to fetch accounts');
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('Failed to fetch live accounts, using cached:', err);
+      return loadStored(STORAGE_KEYS.ACCOUNTS, MOCK_ACCOUNTS);
+    }
   },
 
   getAvailableUsers(): User[] {
