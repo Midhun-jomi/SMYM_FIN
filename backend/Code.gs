@@ -115,6 +115,10 @@ function doGet(e) {
       return executeUpdateUser(ss, updateData, e.parameter.actor || "admin@smym.org", e.parameter.passcode || "");
     }
 
+    if (action === "seedArunapuramLedger") {
+      return jsonResponse(seedArunapuramLedger(ss));
+    }
+
     if (action === "seedInitialAccounts") {
       seedAccountsIfEmpty(ss);
       seedUsersIfEmpty(ss);
@@ -694,7 +698,11 @@ function getSheetData(ss, sheetName) {
     const row = rows[i];
     const obj = {};
     for (let j = 0; j < headers.length; j++) {
-      obj[headers[j]] = row[j];
+      let val = row[j];
+      if (val instanceof Date) {
+        val = Utilities.formatDate(val, ss.getSpreadsheetTimeZone() || "Asia/Kolkata", "yyyy-MM-dd");
+      }
+      obj[headers[j]] = val;
     }
     results.push(obj);
   }
@@ -812,4 +820,131 @@ function createTabWithHeaders(ss, name, headers) {
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#ecfdf5");
   }
+}
+
+/**
+ * One-click Arunapuram Ledger Seeder:
+ * Populates all 55 verified ledger transactions from SMYM ARUNAPURAM (Dec 2024 - Oct 2026),
+ * along with the starting balance ₹40,000, 3 accounts totaling ₹2,093, 7 parish events, and settings.
+ * Select 'seedArunapuramLedger' in Apps Script editor and click 'Run'.
+ */
+function seedArunapuramLedger(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. Initialize tabs if missing
+  initializeDatabaseTabs();
+
+  // 2. Settings tab
+  const settingsSheet = ss.getSheetByName(SHEET_NAMES.SETTINGS);
+  if (settingsSheet) {
+    settingsSheet.clear();
+    settingsSheet.appendRow(["setting_key", "setting_value", "description"]);
+    settingsSheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#ecfdf5");
+    settingsSheet.appendRow(["SOCIETY_NAME", "SMYM Arunapuram", "Official parish youth society title"]);
+    settingsSheet.appendRow(["ADMIN_PASSCODE", "SMYM26", "Master passcode for parish director/treasurer admin privileges"]);
+    settingsSheet.appendRow(["EDITOR_PASSCODE", "SMYM26", "Passcode for youth society editors to record entries"]);
+  }
+
+  // 3. Accounts tab (Opening ₹40,000, Current ₹2,093)
+  const accSheet = ss.getSheetByName(SHEET_NAMES.ACCOUNTS);
+  if (accSheet) {
+    accSheet.clear();
+    accSheet.appendRow(["account_id", "account_name", "account_type", "opening_balance", "current_balance", "is_active"]);
+    accSheet.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#ecfdf5");
+    accSheet.appendRow(["acc_01", "Treasurer - Operating Account", "BANK", 40000, 1643, true]);
+    accSheet.appendRow(["acc_02", "Cash in Hand (Treasurer)", "CASH", 0, 300, true]);
+    accSheet.appendRow(["acc_03", "Cash in Hand (ast.Vicar)", "CASH", 0, 150, true]);
+  }
+
+  // 4. Events tab
+  const evtSheet = ss.getSheetByName(SHEET_NAMES.EVENTS);
+  if (evtSheet) {
+    evtSheet.clear();
+    evtSheet.appendRow(["event_id", "event_name", "event_date", "budget", "total_income", "total_expense", "status"]);
+    evtSheet.getRange(1, 1, 1, 7).setFontWeight("bold").setBackground("#ecfdf5");
+    evtSheet.appendRow(["evt_cake_2024", "Cake Mela 2024", "2024-12-23", 15000, 11760, 200, "COMPLETED"]);
+    evtSheet.appendRow(["evt_holyweek_2025", "Holy Week 2025", "2025-04-20", 3000, 0, 2003, "COMPLETED"]);
+    evtSheet.appendRow(["evt_payasam_2025", "Payasam Mela 2025", "2025-09-04", 25000, 31200, 26040, "COMPLETED"]);
+    evtSheet.appendRow(["evt_carol_2025", "Christmas Carol 2025", "2025-12-25", 15000, 10496, 14357, "COMPLETED"]);
+    evtSheet.appendRow(["evt_cake_2025", "Cake Mela 2025", "2025-12-25", 35000, 35325, 32534, "COMPLETED"]);
+    evtSheet.appendRow(["evt_football_2026", "Diocese Youth Football Tournament 2026", "2026-04-26", 10000, 0, 7670, "COMPLETED"]);
+    evtSheet.appendRow(["evt_payasam_2026", "Payasam Mela 2026", "2026-09-04", 20000, 25841, 19948, "COMPLETED"]);
+  }
+
+  // 5. Transactions tab
+  const txnSheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
+  if (txnSheet) {
+    txnSheet.clear();
+    txnSheet.appendRow([
+      "transaction_id", "date", "type", "description", "category",
+      "amount", "account_id", "payment_method", "event_id", "reference_id",
+      "status", "created_by", "created_at", "updated_by", "updated_at"
+    ]);
+    txnSheet.getRange(1, 1, 1, 15).setFontWeight("bold").setBackground("#ecfdf5");
+
+    const rawRows = [
+      ["txn_01", "2024-12-01", "EXPENSE", "Star Decoration", "Parish & Church Feasts", 2380, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2024-12-01T10:00:00.000Z", "", ""],
+      ["txn_02", "2024-12-13", "EXPENSE", "Copy & Print (Cake Mela)", "Event Expenses", 200, "acc_01", "CASH", "evt_cake_2024", "", "COMPLETED", "treasurer@smym.org", "2024-12-13T10:00:00.000Z", "", ""],
+      ["txn_03", "2024-12-13", "EXPENSE", "Unit Registration", "Diocese & Forane Dues", 980, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2024-12-13T10:00:00.000Z", "", ""],
+      ["txn_04", "2024-12-20", "EXPENSE", "Bill Book", "Administration", 306, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2024-12-20T10:00:00.000Z", "", ""],
+      ["txn_05", "2024-12-23", "INCOME", "Cake Mela (Sales Collection)", "Fundraising & Mela", 11760, "acc_01", "CASH", "evt_cake_2024", "", "COMPLETED", "treasurer@smym.org", "2024-12-23T10:00:00.000Z", "", ""],
+      ["txn_06", "2025-04-10", "EXPENSE", "Snacks for Sunday School students", "Sunday School & Catechism", 1523, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-04-10T10:00:00.000Z", "", ""],
+      ["txn_07", "2025-04-20", "EXPENSE", "Holy Week (Decoration & Food)", "Parish & Church Feasts", 2003, "acc_01", "CASH", "evt_holyweek_2025", "", "COMPLETED", "treasurer@smym.org", "2025-04-20T10:00:00.000Z", "", ""],
+      ["txn_08", "2025-04-21", "EXPENSE", "Supplement", "Society Activities", 208, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-04-21T10:00:00.000Z", "", ""],
+      ["txn_09", "2025-04-23", "EXPENSE", "Cleaning / Painting (Grotto)", "Parish Maintenance", 5852, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-04-23T10:00:00.000Z", "", ""],
+      ["txn_10", "2025-04-24", "EXPENSE", "Fish (Grotto)", "Parish Maintenance", 2890, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-04-24T10:00:00.000Z", "", ""],
+      ["txn_11", "2025-05-03", "EXPENSE", "Snacks for Holy communion students", "Sunday School & Catechism", 119, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-05-03T10:00:00.000Z", "", ""],
+      ["txn_12", "2025-05-21", "EXPENSE", "Cleaning Side", "Parish Maintenance", 720, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-05-21T10:00:00.000Z", "", ""],
+      ["txn_13", "2025-05-27", "EXPENSE", "Motor Rent (Cleaning)", "Equipment Rental", 230, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-05-27T10:00:00.000Z", "", ""],
+      ["txn_14", "2025-05-29", "EXPENSE", "Gift (asst.vicar)", "Honorarium & Gifts", 199, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-05-29T10:00:00.000Z", "", ""],
+      ["txn_15", "2025-05-31", "EXPENSE", "Bouquet", "Parish & Church Feasts", 400, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-05-31T10:00:00.000Z", "", ""],
+      ["txn_16", "2025-06-05", "EXPENSE", "Farewell Gift (Sister)", "Honorarium & Gifts", 900, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-06-05T10:00:00.000Z", "", ""],
+      ["txn_17", "2025-07-02", "EXPENSE", "Feast celebration (asst.vicar)", "Parish & Church Feasts", 1259, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-07-02T10:00:00.000Z", "", ""],
+      ["txn_18", "2025-07-28", "EXPENSE", "Poster Making Competition", "Competitions & Youth Fest", 1500, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-07-28T10:00:00.000Z", "", ""],
+      ["txn_19", "2025-07-31", "EXPENSE", "Registration (രചന മത്സരം)", "Competitions & Youth Fest", 570, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-07-31T10:00:00.000Z", "", ""],
+      ["txn_20", "2025-08-03", "EXPENSE", "Min. Balance (Service charge)", "Bank Charges", 2000, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-08-03T10:00:00.000Z", "", ""],
+      ["txn_21", "2025-08-04", "EXPENSE", "Vianney day", "Honorarium & Gifts", 900, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-08-04T10:00:00.000Z", "", ""],
+      ["txn_22", "2025-08-27", "EXPENSE", "Football competition registration", "Sports & Youth Welfare", 1000, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-08-27T10:00:00.000Z", "", ""],
+      ["txn_23", "2025-08-30", "EXPENSE", "Sunday School Onam", "Sunday School & Catechism", 1933, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-08-30T10:00:00.000Z", "", ""],
+      ["txn_24", "2025-08-31", "EXPENSE", "Football practice (Turf booking)", "Sports & Youth Welfare", 600, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-08-31T10:00:00.000Z", "", ""],
+      ["txn_25", "2025-09-04", "INCOME", "Payasam Mela (Collection & Sales)", "Fundraising & Mela", 31200, "acc_01", "CASH", "evt_payasam_2025", "", "COMPLETED", "treasurer@smym.org", "2025-09-04T10:00:00.000Z", "", ""],
+      ["txn_26", "2025-09-04", "EXPENSE", "Payasam Mela (Ingredients & Supplies)", "Event Expenses", 26040, "acc_01", "CASH", "evt_payasam_2025", "", "COMPLETED", "treasurer@smym.org", "2025-09-04T10:00:00.000Z", "", ""],
+      ["txn_27", "2025-09-06", "EXPENSE", "Football competition (Food)", "Sports & Youth Welfare", 2210, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-09-06T10:00:00.000Z", "", ""],
+      ["txn_28", "2025-09-29", "EXPENSE", "Birthday Celebration & Gift (Vicar)", "Honorarium & Gifts", 3389, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-09-29T10:00:00.000Z", "", ""],
+      ["txn_29", "2025-09-30", "EXPENSE", "Badminton shuttlecock", "Sports & Youth Welfare", 1100, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-09-30T10:00:00.000Z", "", ""],
+      ["txn_30", "2025-10-04", "EXPENSE", "Birthday Celebration & Gift (ast.Vicar)", "Honorarium & Gifts", 2168, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-10-04T10:00:00.000Z", "", ""],
+      ["txn_31", "2025-10-17", "EXPENSE", "SMYM Flag", "Society Assets & Flags", 250, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-10-17T10:00:00.000Z", "", ""],
+      ["txn_32", "2025-11-30", "EXPENSE", "Supplement", "Society Activities", 3000, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-11-30T10:00:00.000Z", "", ""],
+      ["txn_33", "2025-12-01", "EXPENSE", "Unit Registration", "Diocese & Forane Dues", 1160, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2025-12-01T10:00:00.000Z", "", ""],
+      ["txn_34", "2025-12-25", "INCOME", "Christmas Carol (Donations & Collection)", "Carol & Celebrations", 10496, "acc_01", "CASH", "evt_carol_2025", "", "COMPLETED", "treasurer@smym.org", "2025-12-25T10:00:00.000Z", "", ""],
+      ["txn_35", "2025-12-25", "EXPENSE", "Christmas Carol (Band & Transport Expenses)", "Event Expenses", 14357, "acc_01", "CASH", "evt_carol_2025", "", "COMPLETED", "treasurer@smym.org", "2025-12-25T10:00:00.000Z", "", ""],
+      ["txn_36", "2025-12-25", "INCOME", "Cake Mela (Sales Revenue)", "Fundraising & Mela", 35325, "acc_01", "CASH", "evt_cake_2025", "", "COMPLETED", "treasurer@smym.org", "2025-12-25T10:00:00.000Z", "", ""],
+      ["txn_37", "2025-12-25", "EXPENSE", "Cake Mela (Bakery & Packaging Cost)", "Event Expenses", 32534, "acc_01", "CASH", "evt_cake_2025", "", "COMPLETED", "treasurer@smym.org", "2025-12-25T10:00:00.000Z", "", ""],
+      ["txn_38", "2026-01-06", "EXPENSE", "Crib Cleaning", "Parish Maintenance", 400, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-01-06T10:00:00.000Z", "", ""],
+      ["txn_39", "2026-02-12", "EXPENSE", "Cleaning and refreshment", "Parish Maintenance", 740, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-02-12T10:00:00.000Z", "", ""],
+      ["txn_40", "2026-03-07", "EXPENSE", "Womens Day", "Society Activities", 800, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-03-07T10:00:00.000Z", "", ""],
+      ["txn_41", "2026-03-20", "EXPENSE", "Kurishinte Vazhi", "Liturgy & Spiritual", 200, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-03-20T10:00:00.000Z", "", ""],
+      ["txn_42", "2026-04-09", "EXPENSE", "വിശ്വാസോത്സവം - refreshment", "Sunday School & Catechism", 400, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-04-09T10:00:00.000Z", "", ""],
+      ["txn_43", "2026-04-26", "EXPENSE", "Football competition registration", "Sports & Youth Welfare", 850, "acc_01", "CASH", "evt_football_2026", "", "COMPLETED", "treasurer@smym.org", "2026-04-26T10:00:00.000Z", "", ""],
+      ["txn_44", "2026-05-02", "EXPENSE", "Football Jersey", "Sports & Youth Welfare", 6820, "acc_01", "CASH", "evt_football_2026", "", "COMPLETED", "treasurer@smym.org", "2026-05-02T10:00:00.000Z", "", ""],
+      ["txn_45", "2026-06-28", "EXPENSE", "Badminton & Football competition registration", "Sports & Youth Welfare", 1800, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-06-28T10:00:00.000Z", "", ""],
+      ["txn_46", "2026-07-02", "EXPENSE", "St.Thomas Quiz and Prize Pool", "Competitions & Youth Fest", 150, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-07-02T10:00:00.000Z", "", ""],
+      ["txn_47", "2026-07-05", "EXPENSE", "Social experiment", "Society Activities", 100, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-07-05T10:00:00.000Z", "", ""],
+      ["txn_48", "2026-07-12", "EXPENSE", "Football competition registration", "Sports & Youth Welfare", 750, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-07-12T10:00:00.000Z", "", ""],
+      ["txn_49", "2026-07-17", "EXPENSE", "Condolence Flowers", "Charity & Welfare", 400, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-07-17T10:00:00.000Z", "", ""],
+      ["txn_50", "2026-08-15", "EXPENSE", "Quiz Competition Prize", "Competitions & Youth Fest", 1750, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-08-15T10:00:00.000Z", "", ""],
+      ["txn_51", "2026-09-04", "INCOME", "Payasam Mela (Sales Collection)", "Fundraising & Mela", 25841, "acc_01", "CASH", "evt_payasam_2026", "", "COMPLETED", "treasurer@smym.org", "2026-09-04T10:00:00.000Z", "", ""],
+      ["txn_52", "2026-09-04", "EXPENSE", "Payasam Mela (Ingredients & Supplies)", "Event Expenses", 19948, "acc_01", "CASH", "evt_payasam_2026", "", "COMPLETED", "treasurer@smym.org", "2026-09-04T10:00:00.000Z", "", ""],
+      ["txn_53", "2026-09-27", "EXPENSE", "Gift For Students (Sunday School)", "Sunday School & Catechism", 850, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-09-27T10:00:00.000Z", "", ""],
+      ["txn_54", "2026-10-01", "EXPENSE", "Peter (House)", "Charity & Welfare", 2000, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-10-01T10:00:00.000Z", "", ""],
+      ["txn_55", "2026-10-04", "EXPENSE", "Birthday Cake (ast.Vicar)", "Honorarium & Gifts", 950, "acc_01", "CASH", "", "", "COMPLETED", "treasurer@smym.org", "2026-10-04T10:00:00.000Z", "", ""],
+    ];
+
+    if (rawRows.length > 0) {
+      txnSheet.getRange(2, 1, rawRows.length, 15).setValues(rawRows);
+    }
+  }
+
+  recordAudit(ss, "admin@smym.org", "CREATE", "TRANSACTION", "bulk_ledger", "Seeded 55 transactions for SMYM Arunapuram ledger.");
+  return { success: true, count: 55, message: "SMYM Arunapuram complete ledger seeded successfully!" };
 }

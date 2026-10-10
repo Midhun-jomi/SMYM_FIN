@@ -197,4 +197,10 @@ describe('Currency & Date Formatting', () => {
     expect(res).toBeDefined();
     expect(typeof res).toBe('string');
   });
+
+  it('normalizes Google Sheets UTC midnight timestamps into correct IST ledger dates', () => {
+    // 2024-11-30 18:30:00 UTC is 2024-12-01 00:00:00 IST
+    const date = formatDate('2024-11-30T18:30:00.000Z');
+    expect(date).toContain('1 Dec 2024');
+  });
 });
