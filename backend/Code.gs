@@ -59,6 +59,13 @@ function doGet(e) {
       return jsonResponse({ email: e.parameter.email, role: role });
     }
 
+    if (action === "verifyPasscode") {
+      const email = e.parameter.email || "";
+      const role = e.parameter.role || "EDITOR";
+      const passcode = e.parameter.passcode || "";
+      return executeVerifyPasscode(ss, email, role, passcode);
+    }
+
     if (action === "getDashboard") {
       const transactions = getSheetData(ss, SHEET_NAMES.TRANSACTIONS);
       const accounts = getSheetData(ss, SHEET_NAMES.ACCOUNTS);
@@ -80,7 +87,7 @@ function doGet(e) {
     }
 
     if (action === "voidTransaction" && e.parameter.transactionId) {
-      return executeVoidTransaction(ss, e.parameter.transactionId, e.parameter.actor || "admin");
+      return executeVoidTransaction(ss, e.parameter.transactionId, e.parameter.actor || "admin", e.parameter.passcode || "");
     }
 
     if (action === "addBill" && e.parameter.payload) {
@@ -100,18 +107,19 @@ function doGet(e) {
 
     if (action === "addUser" && e.parameter.payload) {
       const user = JSON.parse(decodeURIComponent(e.parameter.payload));
-      return executeAddUser(ss, user, e.parameter.actor || "admin@smym.org");
+      return executeAddUser(ss, user, e.parameter.actor || "admin@smym.org", e.parameter.passcode || "");
     }
 
     if (action === "updateUserRole" && e.parameter.payload) {
       const updateData = JSON.parse(decodeURIComponent(e.parameter.payload));
-      return executeUpdateUser(ss, updateData, e.parameter.actor || "admin@smym.org");
+      return executeUpdateUser(ss, updateData, e.parameter.actor || "admin@smym.org", e.parameter.passcode || "");
     }
 
     if (action === "seedInitialAccounts") {
       seedAccountsIfEmpty(ss);
       seedUsersIfEmpty(ss);
-      return jsonResponse({ success: true, message: "Initial society accounts and users created." });
+      seedSettingsIfEmpty(ss);
+      return jsonResponse({ success: true, message: "Initial society accounts, users, and settings created." });
     }
 
     return jsonResponse({ error: "Unknown action" }, 400);
@@ -137,7 +145,14 @@ function doPost(e) {
     }
 
     const action = body.action || (e && e.parameter ? e.parameter.action : "");
+    const passcode = body.passcode || (e && e.parameter ? e.parameter.passcode : "");
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    if (action === "verifyPasscode") {
+      const email = body.email || (e && e.parameter ? e.parameter.email : "");
+      const role = body.role || (e && e.parameter ? e.parameter.role : "EDITOR");
+      return executeVerifyPasscode(ss, email, role, passcode);
+    }
 
     if (action === "addTransaction") {
       const txn = body.data || body;
@@ -147,7 +162,7 @@ function doPost(e) {
     if (action === "voidTransaction") {
       const idToVoid = body.transactionId || (e && e.parameter ? e.parameter.transactionId : "");
       const actor = body.actor || "admin";
-      return executeVoidTransaction(ss, idToVoid, actor);
+      return executeVoidTransaction(ss, idToVoid, actor, passcode);
     }
 
     if (action === "addBill") {
@@ -163,11 +178,11 @@ function doPost(e) {
     }
 
     if (action === "addUser") {
-      return executeAddUser(ss, body.data || body, body.actor || "admin@smym.org");
+      return executeAddUser(ss, body.data || body, body.actor || "admin@smym.org", passcode);
     }
 
     if (action === "updateUserRole") {
-      return executeUpdateUser(ss, body.data || body, body.actor || "admin@smym.org");
+      return executeUpdateUser(ss, body.data || body, body.actor || "admin@smym.org", passcode);
     }
 
     if (action === "getUsers") {
@@ -189,13 +204,94 @@ function doPost(e) {
 }
 
 /**
+ * Resolves setting value from Settings sheet
+ */
+function getSetting(ss, key, defaultValue) {
+  const sheet = ss.getSheetByName(SHEET_NAMES.SETTINGS);
+  if (!sheet || sheet.getLastRow() <= 1) return defaultValue;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] && data[i][0].toString().trim() === key) {
+      return data[i][1] ? data[i][1].toString().trim() : defaultValue;
+    }
+  }
+  return defaultValue;
+}
+
+/**
+ * Verifies role-based access passcode
+ */
+function verifyPasscode(ss, role, passcode) {
+  if (!passcode) return false;
+  const cleanPass = passcode.toString().trim();
+  const adminPass = getSetting(ss, "ADMIN_PASSCODE", "SMYM2026!");
+  const editorPass = getSetting(ss, "EDITOR_PASSCODE", "SMYM123");
+
+  if (role === "ADMIN") {
+    return cleanPass === adminPass;
+  }
+  if (role === "EDITOR") {
+    return cleanPass === editorPass || cleanPass === adminPass;
+  }
+  return false;
+}
+
+/**
+ * Authenticates user via secret passcode and returns verified identity
+ */
+function executeVerifyPasscode(ss, email, role, passcode) {
+  if (!email || !passcode) {
+    return jsonResponse({ error: "Email and access passcode are required." }, 400);
+  }
+
+  const isValid = verifyPasscode(ss, role, passcode);
+  if (!isValid) {
+    return jsonResponse({ error: "Invalid access passcode for requested role." }, 401);
+  }
+
+  // Look up user in Users sheet
+  const userSheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  let matchedUser = null;
+  if (userSheet && userSheet.getLastRow() > 1) {
+    const data = userSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] && data[i][1].toString().toLowerCase() === email.toLowerCase()) {
+        if (data[i][4] === "DISABLED") {
+          return jsonResponse({ error: "This user account has been deactivated by parish administration." }, 403);
+        }
+        matchedUser = {
+          user_id: data[i][0],
+          email: data[i][1],
+          display_name: data[i][2],
+          role: role,
+          status: data[i][4] || "ACTIVE",
+        };
+        break;
+      }
+    }
+  }
+
+  if (!matchedUser) {
+    matchedUser = {
+      user_id: "usr_" + new Date().getTime(),
+      email: email.toLowerCase(),
+      display_name: email.split("@")[0],
+      role: role,
+      status: "ACTIVE",
+    };
+  }
+
+  recordAudit(ss, email, "LOGIN", "USER", matchedUser.user_id, "Authenticated successfully as " + role);
+  return jsonResponse({ success: true, user: matchedUser });
+}
+
+/**
  * Resolves user role from authoritative Users sheet
  */
 function getUserRole(ss, email) {
   if (!email) return "PUBLIC_VIEWER";
   const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
   if (!sheet || sheet.getLastRow() <= 1) {
-    // If Users sheet is unseeded, fallback to ADMIN for setup
     return "ADMIN";
   }
 
@@ -268,10 +364,10 @@ function executeAddTransaction(ss, txn) {
 /**
  * Updates status of transaction to VOID (Admin Only)
  */
-function executeVoidTransaction(ss, idToVoid, actor) {
-  const role = getUserRole(ss, actor);
-  if (role !== "ADMIN") {
-    return jsonResponse({ error: "Unauthorized: Only Admins can void transactions." }, 403);
+function executeVoidTransaction(ss, idToVoid, actor, passcode) {
+  const isAuthorized = (passcode && verifyPasscode(ss, "ADMIN", passcode)) || getUserRole(ss, actor) === "ADMIN";
+  if (!isAuthorized) {
+    return jsonResponse({ error: "Unauthorized: Admin authorization required to void transactions." }, 403);
   }
 
   const sheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
@@ -455,12 +551,12 @@ function executeAddEvent(ss, evt) {
 }
 
 /**
- * Adds a new User (Admin Only)
+ * Adds a new User (Admin Only, Passcode/Role Protected)
  */
-function executeAddUser(ss, user, actor) {
-  const actorRole = getUserRole(ss, actor);
-  if (actorRole !== "ADMIN") {
-    return jsonResponse({ error: "Unauthorized: Only Admins can add users." }, 403);
+function executeAddUser(ss, user, actor, passcode) {
+  const isAuthorized = (passcode && verifyPasscode(ss, "ADMIN", passcode)) || getUserRole(ss, actor) === "ADMIN";
+  if (!isAuthorized) {
+    return jsonResponse({ error: "Unauthorized: Only Admins can add authorized users." }, 403);
   }
 
   if (!user.email || !user.role || !user.display_name) {
@@ -494,11 +590,11 @@ function executeAddUser(ss, user, actor) {
 }
 
 /**
- * Updates User Role & Status (Admin Only, Prevent Self-Promotion)
+ * Updates User Role & Status (Admin Only, Passcode/Role Protected, Prevent Self-Promotion)
  */
-function executeUpdateUser(ss, updateData, actor) {
-  const actorRole = getUserRole(ss, actor);
-  if (actorRole !== "ADMIN") {
+function executeUpdateUser(ss, updateData, actor, passcode) {
+  const isAuthorized = (passcode && verifyPasscode(ss, "ADMIN", passcode)) || getUserRole(ss, actor) === "ADMIN";
+  if (!isAuthorized) {
     return jsonResponse({ error: "Unauthorized: Only Admins can modify user permissions." }, 403);
   }
 
@@ -673,9 +769,10 @@ function initializeDatabaseTabs() {
     "setting_key", "setting_value", "description"
   ]);
 
-  // Pre-seed accounts & users if empty
+  // Pre-seed accounts, users & settings if empty
   seedAccountsIfEmpty(ss);
   seedUsersIfEmpty(ss);
+  seedSettingsIfEmpty(ss);
 }
 
 function seedAccountsIfEmpty(ss) {
@@ -694,6 +791,15 @@ function seedUsersIfEmpty(ss) {
     userSheet.appendRow(["usr_01", "admin@smym.org", "Fr. Director / Treasurer", "ADMIN", "ACTIVE", now, now]);
     userSheet.appendRow(["usr_02", "editor@smym.org", "Youth Secretary", "EDITOR", "ACTIVE", now, now]);
     userSheet.appendRow(["usr_03", "visitor@smym.org", "Parish Member", "PUBLIC_VIEWER", "ACTIVE", now, now]);
+  }
+}
+
+function seedSettingsIfEmpty(ss) {
+  const settingsSheet = ss.getSheetByName(SHEET_NAMES.SETTINGS);
+  if (settingsSheet && settingsSheet.getLastRow() <= 1) {
+    settingsSheet.appendRow(["ADMIN_PASSCODE", "SMYM2026!", "Master passcode for parish director/treasurer admin privileges"]);
+    settingsSheet.appendRow(["EDITOR_PASSCODE", "SMYM123", "Passcode for youth society editors to record entries"]);
+    settingsSheet.appendRow(["SOCIETY_NAME", "SMYM Youth Society", "Official parish youth society title"]);
   }
 }
 

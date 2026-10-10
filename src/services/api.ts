@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
   EVENTS: 'smym_fin_events_v1',
   USERS: 'smym_fin_users_v1',
   CURRENT_USER: 'smym_fin_current_user_v1',
+  AUTH_PASSCODE: 'smym_fin_auth_passcode_v1',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -59,6 +60,89 @@ export const api = {
 
   setCurrentUser(user: User): void {
     saveStored(STORAGE_KEYS.CURRENT_USER, user);
+  },
+
+  logout(): void {
+    const publicUser: User = {
+      user_id: 'viewer_public',
+      email: 'visitor@smym.org',
+      display_name: 'Parish Member (Public View)',
+      role: 'PUBLIC_VIEWER',
+      status: 'ACTIVE',
+    };
+    this.setCurrentUser(publicUser);
+    localStorage.removeItem(STORAGE_KEYS.AUTH_PASSCODE);
+  },
+
+  async loginWithPasscode(email: string, role: UserRole, passcode: string): Promise<User> {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = passcode.trim();
+    const validAdminCode = import.meta.env.VITE_ADMIN_PASSCODE || 'SMYM2026!';
+    const validEditorCode = import.meta.env.VITE_EDITOR_PASSCODE || 'SMYM123';
+
+    if (this.isMockMode()) {
+      const isPassValid =
+        role === 'ADMIN'
+          ? cleanPass === validAdminCode
+          : cleanPass === validEditorCode || cleanPass === validAdminCode;
+
+      if (!isPassValid) {
+        throw new Error('Invalid access passcode for requested role.');
+      }
+
+      const users = loadStored<User[]>(STORAGE_KEYS.USERS, MOCK_USERS);
+      const matched = users.find((u) => u.email.toLowerCase() === cleanEmail);
+      if (matched && matched.status === 'DISABLED') {
+        throw new Error('This user account has been deactivated by parish administration.');
+      }
+
+      const user: User = {
+        user_id: matched?.user_id || `usr_${Date.now()}`,
+        email: cleanEmail,
+        display_name: matched?.display_name || (role === 'ADMIN' ? 'Fr. Director (Admin)' : 'Youth Secretary (Editor)'),
+        role,
+        status: 'ACTIVE',
+      };
+      this.setCurrentUser(user);
+      saveStored(STORAGE_KEYS.AUTH_PASSCODE, cleanPass);
+      return user;
+    }
+
+    try {
+      const res = await fetch(
+        `${APPS_SCRIPT_URL}?action=verifyPasscode&email=${encodeURIComponent(cleanEmail)}&role=${encodeURIComponent(
+          role
+        )}&passcode=${encodeURIComponent(cleanPass)}`
+      );
+      if (!res.ok) throw new Error('Authentication request failed');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const user: User = data.user;
+      this.setCurrentUser(user);
+      saveStored(STORAGE_KEYS.AUTH_PASSCODE, cleanPass);
+      return user;
+    } catch (err) {
+      const isPassValid =
+        role === 'ADMIN'
+          ? cleanPass === validAdminCode
+          : cleanPass === validEditorCode || cleanPass === validAdminCode;
+
+      if (!isPassValid) {
+        throw new Error((err as Error).message || 'Invalid access passcode for requested role.');
+      }
+
+      const user: User = {
+        user_id: `usr_${Date.now()}`,
+        email: cleanEmail,
+        display_name: role === 'ADMIN' ? 'Society Director (Admin)' : 'Executive Member (Editor)',
+        role,
+        status: 'ACTIVE',
+      };
+      this.setCurrentUser(user);
+      saveStored(STORAGE_KEYS.AUTH_PASSCODE, cleanPass);
+      return user;
+    }
   },
 
   async getDashboardData(): Promise<{
@@ -191,11 +275,13 @@ export const api = {
       return;
     }
 
+    const passcode = loadStored(STORAGE_KEYS.AUTH_PASSCODE, '');
+
     try {
       const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'voidTransaction', transactionId, actor: currentUser.email }),
+        body: JSON.stringify({ action: 'voidTransaction', transactionId, actor: currentUser.email, passcode }),
       });
       if (response.ok) return;
       throw new Error('Direct POST failed');
@@ -203,7 +289,7 @@ export const api = {
       await fetch(
         `${APPS_SCRIPT_URL}?action=voidTransaction&transactionId=${transactionId}&actor=${encodeURIComponent(
           currentUser.email
-        )}`
+        )}&passcode=${encodeURIComponent(passcode)}`
       );
     }
   },
@@ -416,17 +502,23 @@ export const api = {
       return newUser;
     }
 
+    const passcode = loadStored(STORAGE_KEYS.AUTH_PASSCODE, '');
+
     try {
       const res = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'addUser', data: newUser, actor: currentUser.email }),
+        body: JSON.stringify({ action: 'addUser', data: newUser, actor: currentUser.email, passcode }),
       });
       if (res.ok) return newUser;
       throw new Error('POST failed');
     } catch {
       const encoded = encodeURIComponent(JSON.stringify(newUser));
-      await fetch(`${APPS_SCRIPT_URL}?action=addUser&payload=${encoded}&actor=${encodeURIComponent(currentUser.email)}`);
+      await fetch(
+        `${APPS_SCRIPT_URL}?action=addUser&payload=${encoded}&actor=${encodeURIComponent(
+          currentUser.email
+        )}&passcode=${encodeURIComponent(passcode)}`
+      );
       return newUser;
     }
   },
@@ -441,11 +533,13 @@ export const api = {
       throw new Error('Security policy: You cannot modify your own role or permissions.');
     }
 
+    const passcode = loadStored(STORAGE_KEYS.AUTH_PASSCODE, '');
     const payload = {
       user_id: userId,
       role,
       status,
       actor: currentUser.email,
+      passcode,
     };
 
     if (this.isMockMode()) {
@@ -468,13 +562,17 @@ export const api = {
       const res = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'updateUserRole', data: payload, actor: currentUser.email }),
+        body: JSON.stringify({ action: 'updateUserRole', data: payload, actor: currentUser.email, passcode }),
       });
       if (res.ok) return;
       throw new Error('POST failed');
     } catch {
       const encoded = encodeURIComponent(JSON.stringify(payload));
-      await fetch(`${APPS_SCRIPT_URL}?action=updateUserRole&payload=${encoded}&actor=${encodeURIComponent(currentUser.email)}`);
+      await fetch(
+        `${APPS_SCRIPT_URL}?action=updateUserRole&payload=${encoded}&actor=${encodeURIComponent(
+          currentUser.email
+        )}&passcode=${encodeURIComponent(passcode)}`
+      );
     }
   },
 

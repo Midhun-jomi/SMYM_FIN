@@ -5,15 +5,15 @@ import {
   LogOut,
   Users,
   UserPlus,
-  CheckCircle2,
-  AlertCircle,
-  Search,
+  Lock,
   RefreshCw,
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import { Alert } from '../components/ui/Alert';
 import { User, UserRole } from '../types';
 import { api } from '../services/api';
 import { AddUserModal } from '../components/forms/AddUserModal';
@@ -34,10 +34,15 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser }) => {
   const [usersList, setUsersList] = useState<User[]>([]);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [lookupEmail, setLookupEmail] = useState('');
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupMessage, setLookupMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Passcode login state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginRole, setLoginRole] = useState<'EDITOR' | 'ADMIN'>('EDITOR');
+  const [passcode, setPasscode] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginSuccess, setLoginSuccess] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -81,15 +86,19 @@ export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser })
 
               api.setCurrentUser(authenticatedUser);
               setCurrentUser(authenticatedUser);
-              setLookupMessage({
-                type: 'success',
-                text: `Successfully authenticated as ${authenticatedUser.display_name} with role [${resolvedRole}]`,
-              });
+
+              if (resolvedRole === 'PUBLIC_VIEWER') {
+                setLoginSuccess(
+                  `Signed in with ${profile.email}. You currently have Public Viewer access. Contact an Admin to grant Editor permissions.`
+                );
+              } else {
+                setLoginSuccess(
+                  `Welcome ${authenticatedUser.display_name}! Authenticated with role [${resolvedRole}].`
+                );
+              }
+              setLoginError(null);
             } catch (err) {
-              setLookupMessage({
-                type: 'error',
-                text: 'Failed to parse Google authentication credential.',
-              });
+              setLoginError('Failed to verify Google account credentials.');
             }
           },
         });
@@ -111,6 +120,38 @@ export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser })
     }
   }, [GOOGLE_CLIENT_ID]);
 
+  // Authenticate with Email & Society Passcode
+  const handlePasscodeLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    setLoginSuccess(null);
+
+    if (!loginEmail.trim() || !passcode.trim()) {
+      setLoginError('Please enter both your member email and access passcode.');
+      return;
+    }
+
+    setIsLoggingIn(true);
+    try {
+      const user = await api.loginWithPasscode(loginEmail.trim(), loginRole, passcode.trim());
+      setCurrentUser(user);
+      setLoginSuccess(`Access granted! Signed in as ${user.display_name} with role [${user.role}].`);
+      setPasscode('');
+    } catch (err) {
+      setLoginError((err as Error).message || 'Invalid passcode or unauthorized email.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    api.logout();
+    setCurrentUser(api.getCurrentUser());
+    setLoginSuccess('Signed out to Public View session.');
+    setLoginError(null);
+  };
+
+  // Local Dev only: quick role switcher
   const handleSimulateLogin = (role: UserRole) => {
     const updatedUser: User = {
       user_id: `usr_${role.toLowerCase()}`,
@@ -131,43 +172,6 @@ export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser })
     };
     api.setCurrentUser(updatedUser);
     setCurrentUser(updatedUser);
-  };
-
-  const handleLookupAndSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!lookupEmail.trim()) return;
-
-    setLookupLoading(true);
-    setLookupMessage(null);
-    try {
-      const email = lookupEmail.trim().toLowerCase();
-      const resolvedRole = await api.getUserRole(email);
-
-      const matchedUser = usersList.find((u) => u.email.toLowerCase() === email);
-      const displayName = matchedUser ? matchedUser.display_name : email.split('@')[0];
-
-      const authenticatedUser: User = {
-        user_id: matchedUser?.user_id || `usr_${Date.now()}`,
-        email,
-        display_name: displayName,
-        role: resolvedRole,
-        status: matchedUser?.status || 'ACTIVE',
-      };
-
-      api.setCurrentUser(authenticatedUser);
-      setCurrentUser(authenticatedUser);
-      setLookupMessage({
-        type: 'success',
-        text: `Recognized user ${email}! Authoritative role loaded: [${resolvedRole}].`,
-      });
-    } catch (err) {
-      setLookupMessage({
-        type: 'error',
-        text: (err as Error).message || 'Failed to resolve user authorization.',
-      });
-    } finally {
-      setLookupLoading(false);
-    }
   };
 
   const handleToggleRole = async (targetUser: User) => {
@@ -252,7 +256,7 @@ export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser })
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleSimulateLogin('PUBLIC_VIEWER')}
+              onClick={handleSignOut}
               className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/60"
             >
               <LogOut className="h-4 w-4" />
@@ -266,60 +270,54 @@ export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser })
         </div>
       </Card>
 
-      {/* Google Authentication / Email Verification Card */}
+      {/* Messages */}
+      {loginError && <Alert type="error">{loginError}</Alert>}
+      {loginSuccess && <Alert type="success">{loginSuccess}</Alert>}
+
+      {/* Authentication Panels */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Google Identity Services */}
+        {/* Passcode Login Form */}
         <Card className="flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <Lock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <h3 className="font-bold text-slate-900 dark:text-white text-sm uppercase tracking-wider">
-                Google Workspace Sign-In
+                Committee Passcode Sign-In
               </h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              Sign in with your registered parish or Google email to automatically synchronize your authorized role.
+              Authorized executives can authenticate using their registered email and society secret passcode.
             </p>
 
-            {GOOGLE_CLIENT_ID ? (
-              <div className="py-3 flex justify-center">
-                <div id="googleSignInBtnContainer" />
-              </div>
-            ) : (
-              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-xs text-amber-800 dark:text-amber-300">
-                <p className="font-semibold mb-1">Google OAuth Client ID Not Set</p>
-                <p className="text-[11px] leading-relaxed">
-                  Add <code className="bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded font-mono">VITE_GOOGLE_CLIENT_ID</code> to your <code className="font-mono">.env</code> to activate the live GIS One Tap prompt. In the meantime, use the Role Switcher below!
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500">
-            Authorizations are authoritative and resolved directly from the church registry.
-          </div>
-        </Card>
-
-        {/* Email Role Lookup / Test Session */}
-        <Card className="flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Search className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <h3 className="font-bold text-slate-900 dark:text-white text-sm uppercase tracking-wider">
-                Authoritative Role Lookup
-              </h3>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-              Enter any email address to test server-side role resolution against the database:
-            </p>
-
-            <form onSubmit={handleLookupAndSignIn} className="space-y-3">
+            <form onSubmit={handlePasscodeLogin} className="space-y-3">
               <Input
-                id="lookup_email"
+                id="login_email"
+                label="Member / Parish Email"
                 type="email"
                 placeholder="e.g. treasurer@smym.org"
-                value={lookupEmail}
-                onChange={(e) => setLookupEmail(e.target.value)}
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                required
+              />
+
+              <Select
+                id="login_role"
+                label="Role Requested"
+                value={loginRole}
+                onChange={(e) => setLoginRole(e.target.value as any)}
+                options={[
+                  { value: 'EDITOR', label: 'Society Editor (Treasurer / Secretary)' },
+                  { value: 'ADMIN', label: 'Society Admin (Director / Vicar / Auditor)' },
+                ]}
+              />
+
+              <Input
+                id="login_passcode"
+                label="Security Access Passcode"
+                type="password"
+                placeholder="••••••••"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
                 required
               />
 
@@ -327,85 +325,106 @@ export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser })
                 type="submit"
                 variant="primary"
                 size="sm"
-                className="w-full"
-                isLoading={lookupLoading}
+                className="w-full mt-2"
+                isLoading={isLoggingIn}
               >
-                <span>Verify & Switch Session</span>
+                <span>Unlock Management Session</span>
               </Button>
             </form>
+          </div>
 
-            {lookupMessage && (
-              <div
-                className={`mt-3 p-2.5 rounded-lg text-xs flex items-center gap-2 ${
-                  lookupMessage.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                    : 'bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                }`}
-              >
-                {lookupMessage.type === 'success' ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
-                )}
-                <span>{lookupMessage.text}</span>
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500 italic">
+            Passcodes are configured by the parish director and stored securely in Google Sheets settings.
+          </div>
+        </Card>
+
+        {/* Google Workspace Sign-In */}
+        <Card className="flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <h3 className="font-bold text-slate-900 dark:text-white text-sm uppercase tracking-wider">
+                Google Workspace Single Sign-On
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Sign in with your verified Google account. Permissions are automatically resolved from the society member registry.
+            </p>
+
+            {GOOGLE_CLIENT_ID ? (
+              <div className="py-6 flex flex-col items-center justify-center">
+                <div id="googleSignInBtnContainer" />
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-3 text-center">
+                  Only email accounts registered in the database receive Editor or Admin roles.
+                </p>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
+                <p className="font-semibold mb-1 text-slate-800 dark:text-slate-200">Google OAuth 2.0 Ready</p>
+                <p className="text-[11px] leading-relaxed opacity-90">
+                  To enable Google One Tap on this domain, set <code className="bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded font-mono">VITE_GOOGLE_CLIENT_ID</code> in Vercel. In the meantime, use the Committee Passcode login on the left.
+                </p>
               </div>
             )}
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500">
+            Unregistered Google accounts automatically default to safe Public Viewer status.
           </div>
         </Card>
       </div>
 
-      {/* Quick Demo Role Switcher */}
-      <Card>
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Key className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <h3 className="font-bold text-slate-900 dark:text-white text-sm uppercase tracking-wider">
-              1-Click Role Switcher
-            </h3>
+      {/* DEV ONLY: Role Switcher (Hidden in Production) */}
+      {import.meta.env.DEV && (
+        <Card className="border border-dashed border-amber-300 dark:border-amber-800 bg-amber-50/20 dark:bg-amber-950/20">
+          <div className="mb-3">
+            <div className="flex items-center gap-2 mb-0.5">
+              <Key className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <h3 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                Local Development Sandbox Only (Hidden in Production)
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              This sandbox switcher is automatically stripped in production builds:
+            </p>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Instantly switch your simulated identity to inspect UI permissions, guard rails, and audit trails:
-          </p>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button
-            onClick={() => handleSimulateLogin('PUBLIC_VIEWER')}
-            className={`p-4 rounded-xl border text-left transition-all ${
-              currentUser.role === 'PUBLIC_VIEWER'
-                ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/50 shadow-xs ring-1 ring-emerald-500'
-                : 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800'
-            }`}
-          >
-            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">1. Public Viewer</span>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Read-only, no write permissions or void buttons.</p>
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              onClick={() => handleSimulateLogin('PUBLIC_VIEWER')}
+              className={`p-3 rounded-xl border text-left transition-all ${
+                currentUser.role === 'PUBLIC_VIEWER'
+                  ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/50 shadow-xs ring-1 ring-emerald-500'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800'
+              }`}
+            >
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">1. Public Viewer</span>
+            </button>
 
-          <button
-            onClick={() => handleSimulateLogin('EDITOR')}
-            className={`p-4 rounded-xl border text-left transition-all ${
-              currentUser.role === 'EDITOR'
-                ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/50 shadow-xs ring-1 ring-emerald-500'
-                : 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800'
-            }`}
-          >
-            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">2. Society Editor</span>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Can create & edit transactions, manage bills & events.</p>
-          </button>
+            <button
+              onClick={() => handleSimulateLogin('EDITOR')}
+              className={`p-3 rounded-xl border text-left transition-all ${
+                currentUser.role === 'EDITOR'
+                  ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/50 shadow-xs ring-1 ring-emerald-500'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800'
+              }`}
+            >
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">2. Society Editor</span>
+            </button>
 
-          <button
-            onClick={() => handleSimulateLogin('ADMIN')}
-            className={`p-4 rounded-xl border text-left transition-all ${
-              currentUser.role === 'ADMIN'
-                ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/50 shadow-xs ring-1 ring-emerald-500'
-                : 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800'
-            }`}
-          >
-            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">3. Society Admin</span>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Full control, user management, and void capabilities.</p>
-          </button>
-        </div>
-      </Card>
+            <button
+              onClick={() => handleSimulateLogin('ADMIN')}
+              className={`p-3 rounded-xl border text-left transition-all ${
+                currentUser.role === 'ADMIN'
+                  ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/50 shadow-xs ring-1 ring-emerald-500'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800'
+              }`}
+            >
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">3. Society Admin</span>
+            </button>
+          </div>
+        </Card>
+      )}
 
       {/* Society User Management Panel (Admin Only) */}
       {currentUser.role === 'ADMIN' && (
