@@ -44,6 +44,16 @@ function doGet(e) {
       return jsonResponse(data);
     }
 
+    if (action === "getUsers") {
+      const data = getSheetData(ss, SHEET_NAMES.USERS);
+      return jsonResponse(data);
+    }
+
+    if (action === "getUserRole" && e.parameter.email) {
+      const role = getUserRole(ss, e.parameter.email);
+      return jsonResponse({ email: e.parameter.email, role: role });
+    }
+
     if (action === "getDashboard") {
       const transactions = getSheetData(ss, SHEET_NAMES.TRANSACTIONS);
       const accounts = getSheetData(ss, SHEET_NAMES.ACCOUNTS);
@@ -83,9 +93,20 @@ function doGet(e) {
       return executeAddEvent(ss, evt);
     }
 
+    if (action === "addUser" && e.parameter.payload) {
+      const user = JSON.parse(decodeURIComponent(e.parameter.payload));
+      return executeAddUser(ss, user, e.parameter.actor || "admin@smym.org");
+    }
+
+    if (action === "updateUserRole" && e.parameter.payload) {
+      const updateData = JSON.parse(decodeURIComponent(e.parameter.payload));
+      return executeUpdateUser(ss, updateData, e.parameter.actor || "admin@smym.org");
+    }
+
     if (action === "seedInitialAccounts") {
       seedAccountsIfEmpty(ss);
-      return jsonResponse({ success: true, message: "Initial society accounts created." });
+      seedUsersIfEmpty(ss);
+      return jsonResponse({ success: true, message: "Initial society accounts and users created." });
     }
 
     return jsonResponse({ error: "Unknown action" }, 400);
@@ -136,6 +157,19 @@ function doPost(e) {
       return executeAddEvent(ss, body.data || body);
     }
 
+    if (action === "addUser") {
+      return executeAddUser(ss, body.data || body, body.actor || "admin@smym.org");
+    }
+
+    if (action === "updateUserRole") {
+      return executeUpdateUser(ss, body.data || body, body.actor || "admin@smym.org");
+    }
+
+    if (action === "getUsers") {
+      const data = getSheetData(ss, SHEET_NAMES.USERS);
+      return jsonResponse(data);
+    }
+
     return jsonResponse({ error: "Unknown action" }, 400);
   } catch (err) {
     return jsonResponse({ error: err.toString() }, 500);
@@ -145,11 +179,40 @@ function doPost(e) {
 }
 
 /**
+ * Resolves user role from authoritative Users sheet
+ */
+function getUserRole(ss, email) {
+  if (!email) return "PUBLIC_VIEWER";
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet || sheet.getLastRow() <= 1) {
+    // If Users sheet is unseeded, fallback to ADMIN for setup
+    return "ADMIN";
+  }
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1] && data[i][1].toString().trim().toLowerCase() === email.toString().trim().toLowerCase()) {
+      const status = data[i][4];
+      if (status !== "ACTIVE") return "PUBLIC_VIEWER";
+      return data[i][3] || "PUBLIC_VIEWER";
+    }
+  }
+  return "PUBLIC_VIEWER";
+}
+
+/**
  * Appends a new verified transaction record
  */
 function executeAddTransaction(ss, txn) {
   if (!txn.amount || Number(txn.amount) <= 0 || !txn.description || !txn.type) {
     return jsonResponse({ error: "Validation failed: Invalid transaction payload." }, 400);
+  }
+
+  // Backend authorization check
+  const creator = txn.created_by || "anonymous";
+  const role = getUserRole(ss, creator);
+  if (role === "PUBLIC_VIEWER") {
+    return jsonResponse({ error: "Unauthorized: Public viewers cannot record transactions." }, 403);
   }
 
   const sheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
@@ -172,7 +235,7 @@ function executeAddTransaction(ss, txn) {
     txn.event_id || "",
     txn.reference_id || "",
     "COMPLETED",
-    txn.created_by || "anonymous",
+    creator,
     createdAt,
     "",
     ""
@@ -187,15 +250,20 @@ function executeAddTransaction(ss, txn) {
   }
 
   // Record audit log entry
-  recordAudit(ss, txn.created_by || "system", "CREATE", "TRANSACTION", newId, "Created " + txn.type + " of ₹" + txn.amount + ": " + txn.description);
+  recordAudit(ss, creator, "CREATE", "TRANSACTION", newId, "Created " + txn.type + " of ₹" + txn.amount + ": " + txn.description);
 
   return jsonResponse({ success: true, transaction_id: newId });
 }
 
 /**
- * Updates status of transaction to VOID
+ * Updates status of transaction to VOID (Admin Only)
  */
 function executeVoidTransaction(ss, idToVoid, actor) {
+  const role = getUserRole(ss, actor);
+  if (role !== "ADMIN") {
+    return jsonResponse({ error: "Unauthorized: Only Admins can void transactions." }, 403);
+  }
+
   const sheet = ss.getSheetByName(SHEET_NAMES.TRANSACTIONS);
   if (!sheet) return jsonResponse({ error: "Transactions sheet not found." }, 500);
 
@@ -238,6 +306,12 @@ function executeAddBill(ss, bill) {
     return jsonResponse({ error: "Validation failed: Invalid bill payload." }, 400);
   }
 
+  const creator = bill.created_by || "editor@smym.org";
+  const role = getUserRole(ss, creator);
+  if (role === "PUBLIC_VIEWER") {
+    return jsonResponse({ error: "Unauthorized: Public viewers cannot create bills." }, 403);
+  }
+
   const sheet = ss.getSheetByName(SHEET_NAMES.BILLS);
   if (!sheet) return jsonResponse({ error: "Bills sheet not found." }, 500);
 
@@ -255,7 +329,7 @@ function executeAddBill(ss, bill) {
     bill.notes || ""
   ]);
 
-  recordAudit(ss, bill.created_by || "system", "CREATE", "BILL", billId, "Created bill: " + bill.bill_name + " (₹" + bill.amount + ")");
+  recordAudit(ss, creator, "CREATE", "BILL", billId, "Created bill: " + bill.bill_name + " (₹" + bill.amount + ")");
   return jsonResponse({ success: true, bill_id: billId });
 }
 
@@ -267,6 +341,12 @@ function executePayBill(ss, payData) {
   const payAmount = Number(payData.amount);
   if (!billId || !payAmount || payAmount <= 0) {
     return jsonResponse({ error: "Invalid payment amount or bill ID." }, 400);
+  }
+
+  const actor = payData.actor || "treasurer";
+  const role = getUserRole(ss, actor);
+  if (role === "PUBLIC_VIEWER") {
+    return jsonResponse({ error: "Unauthorized: Public viewers cannot record payments." }, 403);
   }
 
   const billSheet = ss.getSheetByName(SHEET_NAMES.BILLS);
@@ -313,7 +393,7 @@ function executePayBill(ss, payData) {
       payData.event_id || "",
       billId,
       "COMPLETED",
-      payData.actor || "treasurer",
+      actor,
       new Date().toISOString(),
       "",
       ""
@@ -327,7 +407,7 @@ function executePayBill(ss, payData) {
   billSheet.getRange(billRow, 8).setValue(newStatus);
   billSheet.getRange(billRow, 9).setValue(txnId);
 
-  recordAudit(ss, payData.actor || "system", "UPDATE", "BILL", billId, "Paid ₹" + payAmount + " for " + billName + ". New status: " + newStatus);
+  recordAudit(ss, actor, "UPDATE", "BILL", billId, "Paid ₹" + payAmount + " for " + billName + ". New status: " + newStatus);
 
   return jsonResponse({ success: true, bill_id: billId, transaction_id: txnId, new_status: newStatus, total_paid: newPaid });
 }
@@ -338,6 +418,12 @@ function executePayBill(ss, payData) {
 function executeAddEvent(ss, evt) {
   if (!evt.event_name || !evt.event_date) {
     return jsonResponse({ error: "Validation failed: Event name and date required." }, 400);
+  }
+
+  const creator = evt.created_by || "editor@smym.org";
+  const role = getUserRole(ss, creator);
+  if (role === "PUBLIC_VIEWER") {
+    return jsonResponse({ error: "Unauthorized: Public viewers cannot create events." }, 403);
   }
 
   const sheet = ss.getSheetByName(SHEET_NAMES.EVENTS);
@@ -354,8 +440,93 @@ function executeAddEvent(ss, evt) {
     evt.status || "UPCOMING"
   ]);
 
-  recordAudit(ss, evt.created_by || "system", "CREATE", "EVENT", eventId, "Created event: " + evt.event_name + " with budget ₹" + (evt.budget || 0));
+  recordAudit(ss, creator, "CREATE", "EVENT", eventId, "Created event: " + evt.event_name + " with budget ₹" + (evt.budget || 0));
   return jsonResponse({ success: true, event_id: eventId });
+}
+
+/**
+ * Adds a new User (Admin Only)
+ */
+function executeAddUser(ss, user, actor) {
+  const actorRole = getUserRole(ss, actor);
+  if (actorRole !== "ADMIN") {
+    return jsonResponse({ error: "Unauthorized: Only Admins can add users." }, 403);
+  }
+
+  if (!user.email || !user.role || !user.display_name) {
+    return jsonResponse({ error: "Validation failed: email, role, and display_name required." }, 400);
+  }
+
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet) return jsonResponse({ error: "Users sheet not found." }, 500);
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1] && data[i][1].toString().toLowerCase() === user.email.toLowerCase()) {
+      return jsonResponse({ error: "User with this email already exists." }, 400);
+    }
+  }
+
+  const userId = user.user_id || "usr_" + new Date().getTime();
+  const now = new Date().toISOString();
+  sheet.appendRow([
+    userId,
+    user.email.toLowerCase(),
+    user.display_name,
+    user.role,
+    user.status || "ACTIVE",
+    now,
+    now
+  ]);
+
+  recordAudit(ss, actor, "CREATE", "USER", userId, "Added user: " + user.email + " with role " + user.role);
+  return jsonResponse({ success: true, user_id: userId });
+}
+
+/**
+ * Updates User Role & Status (Admin Only, Prevent Self-Promotion)
+ */
+function executeUpdateUser(ss, updateData, actor) {
+  const actorRole = getUserRole(ss, actor);
+  if (actorRole !== "ADMIN") {
+    return jsonResponse({ error: "Unauthorized: Only Admins can modify user permissions." }, 403);
+  }
+
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet) return jsonResponse({ error: "Users sheet not found." }, 500);
+
+  const data = sheet.getDataRange().getValues();
+  let found = false;
+
+  for (let i = 1; i < data.length; i++) {
+    const rowUserId = data[i][0];
+    const rowUserEmail = data[i][1].toString().toLowerCase();
+
+    if (rowUserId === updateData.user_id || (updateData.email && rowUserEmail === updateData.email.toLowerCase())) {
+      // Prevent self-promotion or self-modification
+      if (actor && rowUserEmail === actor.toLowerCase()) {
+        return jsonResponse({ error: "Forbidden: You cannot modify your own role or permissions." }, 403);
+      }
+
+      if (updateData.role) {
+        sheet.getRange(i + 1, 4).setValue(updateData.role);
+      }
+      if (updateData.status) {
+        sheet.getRange(i + 1, 5).setValue(updateData.status);
+      }
+      sheet.getRange(i + 1, 7).setValue(new Date().toISOString());
+
+      recordAudit(ss, actor, "UPDATE", "USER", rowUserId, "Updated user " + rowUserEmail + " to role: " + (updateData.role || data[i][3]) + ", status: " + (updateData.status || data[i][4]));
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    return jsonResponse({ error: "User not found." }, 404);
+  }
+
+  return jsonResponse({ success: true, message: "User permissions updated successfully." });
 }
 
 /**
@@ -492,8 +663,9 @@ function initializeDatabaseTabs() {
     "setting_key", "setting_value", "description"
   ]);
 
-  // Pre-seed accounts if empty
+  // Pre-seed accounts & users if empty
   seedAccountsIfEmpty(ss);
+  seedUsersIfEmpty(ss);
 }
 
 function seedAccountsIfEmpty(ss) {
@@ -502,6 +674,16 @@ function seedAccountsIfEmpty(ss) {
     accSheet.appendRow(["acc_01", "Federal Bank - Operating Account", "BANK", 150000, 150000, true]);
     accSheet.appendRow(["acc_02", "Cash in Hand (Treasurer)", "CASH", 15000, 15000, true]);
     accSheet.appendRow(["acc_03", "Youth Mission & Charity Fund", "BANK", 50000, 50000, true]);
+  }
+}
+
+function seedUsersIfEmpty(ss) {
+  const userSheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (userSheet && userSheet.getLastRow() <= 1) {
+    const now = new Date().toISOString();
+    userSheet.appendRow(["usr_01", "admin@smym.org", "Fr. Director / Treasurer", "ADMIN", "ACTIVE", now, now]);
+    userSheet.appendRow(["usr_02", "editor@smym.org", "Youth Secretary", "EDITOR", "ACTIVE", now, now]);
+    userSheet.appendRow(["usr_03", "visitor@smym.org", "Parish Member", "PUBLIC_VIEWER", "ACTIVE", now, now]);
   }
 }
 

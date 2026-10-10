@@ -1,4 +1,4 @@
-import { Transaction, Account, Bill, EventItem, User, FinancialSummary } from '../types';
+import { Transaction, Account, Bill, EventItem, User, UserRole, FinancialSummary } from '../types';
 import {
   MOCK_TRANSACTIONS,
   MOCK_ACCOUNTS,
@@ -17,6 +17,7 @@ const STORAGE_KEYS = {
   ACCOUNTS: 'smym_fin_accounts_v1',
   BILLS: 'smym_fin_bills_v1',
   EVENTS: 'smym_fin_events_v1',
+  USERS: 'smym_fin_users_v1',
   CURRENT_USER: 'smym_fin_current_user_v1',
 };
 
@@ -381,7 +382,120 @@ export const api = {
     }
   },
 
+  async getUsers(): Promise<User[]> {
+    if (this.isMockMode()) {
+      return loadStored(STORAGE_KEYS.USERS, MOCK_USERS);
+    }
+    try {
+      const response = await fetch(`${APPS_SCRIPT_URL}?action=getUsers`);
+      if (!response.ok) throw new Error('Failed to fetch users');
+      const data = await response.json();
+      return Array.isArray(data) && data.length > 0 ? data : loadStored(STORAGE_KEYS.USERS, MOCK_USERS);
+    } catch (err) {
+      console.warn('Failed to fetch live users, using cached:', err);
+      return loadStored(STORAGE_KEYS.USERS, MOCK_USERS);
+    }
+  },
+
+  async addUser(user: Omit<User, 'user_id'>): Promise<User> {
+    const currentUser = this.getCurrentUser();
+    if (currentUser.role !== 'ADMIN') {
+      throw new Error('Permission denied: Only Admins can add authorized users.');
+    }
+
+    const newUser: User = {
+      ...user,
+      user_id: `usr_${Date.now()}`,
+    };
+
+    if (this.isMockMode()) {
+      const current = loadStored<User[]>(STORAGE_KEYS.USERS, MOCK_USERS);
+      const updated = [newUser, ...current];
+      saveStored(STORAGE_KEYS.USERS, updated);
+      return newUser;
+    }
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'addUser', data: newUser, actor: currentUser.email }),
+      });
+      if (res.ok) return newUser;
+      throw new Error('POST failed');
+    } catch {
+      const encoded = encodeURIComponent(JSON.stringify(newUser));
+      await fetch(`${APPS_SCRIPT_URL}?action=addUser&payload=${encoded}&actor=${encodeURIComponent(currentUser.email)}`);
+      return newUser;
+    }
+  },
+
+  async updateUserRole(userId: string, role?: UserRole, status?: 'ACTIVE' | 'DISABLED'): Promise<void> {
+    const currentUser = this.getCurrentUser();
+    if (currentUser.role !== 'ADMIN') {
+      throw new Error('Permission denied: Only Admins can modify user roles.');
+    }
+
+    if (currentUser.user_id === userId) {
+      throw new Error('Security policy: You cannot modify your own role or permissions.');
+    }
+
+    const payload = {
+      user_id: userId,
+      role,
+      status,
+      actor: currentUser.email,
+    };
+
+    if (this.isMockMode()) {
+      const current = loadStored<User[]>(STORAGE_KEYS.USERS, MOCK_USERS);
+      const updated = current.map((u) => {
+        if (u.user_id === userId) {
+          return {
+            ...u,
+            role: role || u.role,
+            status: status || u.status,
+          };
+        }
+        return u;
+      });
+      saveStored(STORAGE_KEYS.USERS, updated);
+      return;
+    }
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'updateUserRole', data: payload, actor: currentUser.email }),
+      });
+      if (res.ok) return;
+      throw new Error('POST failed');
+    } catch {
+      const encoded = encodeURIComponent(JSON.stringify(payload));
+      await fetch(`${APPS_SCRIPT_URL}?action=updateUserRole&payload=${encoded}&actor=${encodeURIComponent(currentUser.email)}`);
+    }
+  },
+
+  async getUserRole(email: string): Promise<UserRole> {
+    if (this.isMockMode()) {
+      const users = loadStored<User[]>(STORAGE_KEYS.USERS, MOCK_USERS);
+      const found = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      return found?.status === 'ACTIVE' ? found.role : 'PUBLIC_VIEWER';
+    }
+    try {
+      const res = await fetch(`${APPS_SCRIPT_URL}?action=getUserRole&email=${encodeURIComponent(email)}`);
+      if (res.ok) {
+        const data = await res.json();
+        return data.role || 'PUBLIC_VIEWER';
+      }
+      return 'PUBLIC_VIEWER';
+    } catch {
+      return 'PUBLIC_VIEWER';
+    }
+  },
+
   getAvailableUsers(): User[] {
-    return MOCK_USERS;
+    return loadStored(STORAGE_KEYS.USERS, MOCK_USERS);
   },
 };
