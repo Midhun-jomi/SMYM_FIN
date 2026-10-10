@@ -1,10 +1,11 @@
-import { Transaction, Account, Bill, EventItem, User, UserRole, FinancialSummary } from '../types';
+import { Transaction, Account, Bill, EventItem, User, UserRole, FinancialSummary, AuditLog } from '../types';
 import {
   MOCK_TRANSACTIONS,
   MOCK_ACCOUNTS,
   MOCK_BILLS,
   MOCK_EVENTS,
   MOCK_USERS,
+  MOCK_AUDIT_LOGS,
   IS_DEMO_DATA,
 } from './mockData';
 import { calculateFinancialSummary } from '../utils/finance';
@@ -492,6 +493,21 @@ export const api = {
       return 'PUBLIC_VIEWER';
     } catch {
       return 'PUBLIC_VIEWER';
+    }
+  },
+
+  async getAuditLogs(): Promise<AuditLog[]> {
+    if (this.isMockMode()) {
+      return MOCK_AUDIT_LOGS;
+    }
+    try {
+      const response = await fetch(`${APPS_SCRIPT_URL}?action=getAuditLogs`);
+      if (!response.ok) throw new Error('Failed to fetch audit logs');
+      const data = await response.json();
+      return Array.isArray(data) && data.length > 0 ? data : MOCK_AUDIT_LOGS;
+    } catch (err) {
+      console.warn('Failed to fetch live audit logs, using mock:', err);
+      return MOCK_AUDIT_LOGS;
     }
   },
 

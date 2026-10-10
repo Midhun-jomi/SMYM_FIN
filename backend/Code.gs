@@ -49,6 +49,11 @@ function doGet(e) {
       return jsonResponse(data);
     }
 
+    if (action === "getAuditLogs") {
+      const data = getSheetData(ss, SHEET_NAMES.AUDIT_LOG);
+      return jsonResponse(data);
+    }
+
     if (action === "getUserRole" && e.parameter.email) {
       const role = getUserRole(ss, e.parameter.email);
       return jsonResponse({ email: e.parameter.email, role: role });
@@ -167,6 +172,11 @@ function doPost(e) {
 
     if (action === "getUsers") {
       const data = getSheetData(ss, SHEET_NAMES.USERS);
+      return jsonResponse(data);
+    }
+
+    if (action === "getAuditLogs") {
+      const data = getSheetData(ss, SHEET_NAMES.AUDIT_LOG);
       return jsonResponse(data);
     }
 

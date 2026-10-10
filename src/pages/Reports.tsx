@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Printer, History } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { MOCK_AUDIT_LOGS } from '../services/mockData';
-import { User } from '../types';
+import { api } from '../services/api';
+import { User, AuditLog } from '../types';
 
 interface ReportsPageProps {
   currentUser: User;
@@ -12,6 +12,11 @@ interface ReportsPageProps {
 
 export const Reports: React.FC<ReportsPageProps> = () => {
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'AUDIT'>('SUMMARY');
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+
+  useEffect(() => {
+    api.getAuditLogs().then(setAuditLogs).catch(console.error);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -120,7 +125,7 @@ export const Reports: React.FC<ReportsPageProps> = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                {MOCK_AUDIT_LOGS.map((log) => (
+                {auditLogs.map((log) => (
                   <tr key={log.log_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-3.5 px-5 text-slate-500 dark:text-slate-400 whitespace-nowrap font-mono text-[11px]">
                       {new Date(log.timestamp).toLocaleString('en-IN')}
