@@ -1,0 +1,163 @@
+import React, { useState, useEffect } from 'react';
+import { ArrowUpRight, PlusCircle, Search, ShoppingBag, ShieldCheck } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { StatCard } from '../components/dashboard/StatCard';
+import { Transaction, User } from '../types';
+import { api } from '../services/api';
+import { formatINR } from '../utils/currency';
+import { formatDate } from '../utils/date';
+
+interface ExpensesPageProps {
+  currentUser: User;
+  onOpenNewTransaction: () => void;
+}
+
+export const Expenses: React.FC<ExpensesPageProps> = ({ currentUser, onOpenNewTransaction }) => {
+  const [expenses, setExpenses] = useState<Transaction[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        const txns = await api.getTransactions();
+        setExpenses(txns.filter((t) => t.type === 'EXPENSE' && t.status === 'COMPLETED'));
+      } catch (err) {
+        console.error('Failed to fetch expenses', err);
+      }
+    };
+    fetchExpenses();
+  }, []);
+
+  const totalExpense = expenses.reduce((sum, t) => sum + t.amount, 0);
+
+  const filtered = expenses.filter(
+    (t) =>
+      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            Society Expenses & Disbursements
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Tracking youth camp costs, mission initiatives, stage sound rentals, and parish activities.
+          </p>
+        </div>
+
+        {currentUser.role !== 'PUBLIC_VIEWER' && (
+          <Button variant="primary" size="sm" onClick={onOpenNewTransaction}>
+            <PlusCircle className="h-4 w-4" />
+            <span>Record Expense</span>
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          title="Total Disbursements"
+          amount={formatINR(totalExpense)}
+          subtitle="Cumulative verified expenditures"
+          accentColor="rose"
+          icon={<ShoppingBag className="h-6 w-6" />}
+        />
+
+        <StatCard
+          title="Event Outlays"
+          amount={formatINR(
+            expenses
+              .filter((e) => e.category.includes('Event') || e.category.includes('Sound'))
+              .reduce((s, e) => s + e.amount, 0)
+          )}
+          subtitle="Stage, sound, lights & youth fest"
+          accentColor="amber"
+          icon={<ArrowUpRight className="h-6 w-6" />}
+        />
+
+        <StatCard
+          title="Mission & Charity"
+          amount={formatINR(
+            expenses
+              .filter((e) => e.category.includes('Charity') || e.category.includes('Mission'))
+              .reduce((s, e) => s + e.amount, 0)
+          )}
+          subtitle="Healthcare camps & outreach"
+          accentColor="emerald"
+          icon={<ShieldCheck className="h-6 w-6" />}
+        />
+      </div>
+
+      <Card className="p-4">
+        <div className="relative">
+          <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search expenses by vendor, purpose, or category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+          />
+        </div>
+      </Card>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                <th className="py-3 px-5">Date</th>
+                <th className="py-3 px-5">Description</th>
+                <th className="py-3 px-5">Category</th>
+                <th className="py-3 px-5">Paid From</th>
+                <th className="py-3 px-5">Method</th>
+                <th className="py-3 px-5 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-sm">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-xs text-slate-400">
+                    No expense records found.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((item) => (
+                  <tr key={item.transaction_id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap">
+                      {formatDate(item.date)}
+                    </td>
+                    <td className="py-3.5 px-5 font-semibold text-slate-900">
+                      {item.description}
+                      {item.event_name && (
+                        <span className="block text-[11px] text-emerald-600 font-medium">
+                          🎯 {item.event_name}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-5 text-xs text-slate-600 whitespace-nowrap">
+                      <Badge variant="rose" size="sm">{item.category}</Badge>
+                    </td>
+                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap">
+                      {item.account_name}
+                    </td>
+                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap font-mono">
+                      {item.payment_method}
+                    </td>
+                    <td className="py-3.5 px-5 text-right whitespace-nowrap font-bold font-mono text-rose-600">
+                      -{formatINR(item.amount)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+};
