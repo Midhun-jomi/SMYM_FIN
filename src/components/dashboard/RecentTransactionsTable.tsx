@@ -48,7 +48,58 @@ export const RecentTransactionsTable: React.FC<RecentTransactionsTableProps> = (
         </Link>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Mobile Card List (Screens < 640px) */}
+      <div className="block sm:hidden divide-y divide-slate-100 dark:divide-slate-800">
+        {displayItems.length === 0 ? (
+          <div className="py-8 text-center text-xs text-slate-400 dark:text-slate-500">
+            No recent transactions available.
+          </div>
+        ) : (
+          displayItems.map((txn) => {
+            const conf = typeConfig[txn.type];
+            return (
+              <div key={txn.transaction_id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-xl border ${conf.bg} shrink-0`}>
+                    {conf.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm truncate">
+                      {txn.description}
+                    </p>
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
+                      <span>{formatDate(txn.date)}</span>
+                      <span>•</span>
+                      <span className="truncate">{txn.category}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <p
+                    className={`font-bold font-mono text-sm ${
+                      txn.type === 'INCOME'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : txn.type === 'EXPENSE'
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : 'text-indigo-600 dark:text-indigo-400'
+                    } ${txn.status === 'VOID' ? 'line-through opacity-50' : ''}`}
+                  >
+                    {txn.type === 'INCOME' ? '+' : txn.type === 'EXPENSE' ? '-' : ''}
+                    {formatINR(txn.amount)}
+                  </p>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {txn.payment_method}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop & Tablet Table (Screens >= 640px) */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/70 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">

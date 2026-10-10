@@ -127,12 +127,12 @@ export const Bills: React.FC<BillsPageProps> = ({ currentUser }) => {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {(['ALL', 'PENDING', 'PARTIALLY_PAID', 'OVERDUE', 'PAID'] as const).map((s) => (
           <button
             key={s}
             onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all whitespace-nowrap ${
+            className={`min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-all whitespace-nowrap flex items-center justify-center ${
               statusFilter === s
                 ? 'bg-slate-900 dark:bg-emerald-600 border-slate-900 dark:border-emerald-600 text-white shadow-xs'
                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -198,7 +198,7 @@ export const Bills: React.FC<BillsPageProps> = ({ currentUser }) => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-xs py-1 px-2.5 h-auto font-medium text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    className="text-xs py-1.5 px-3 min-h-[36px] font-medium text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center"
                     onClick={() => setSelectedBillForPayment(bill)}
                   >
                     <CreditCard className="h-3.5 w-3.5 mr-1" />

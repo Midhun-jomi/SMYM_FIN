@@ -101,12 +101,12 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-0.5">
           {/* Quick Filter Buttons */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1 flex items-center shadow-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1 flex items-center shadow-xs shrink-0">
             <button
               onClick={() => setDateFilter('ALL')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
                 dateFilter === 'ALL'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
@@ -116,7 +116,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             </button>
             <button
               onClick={() => setDateFilter('THIS_MONTH')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
                 dateFilter === 'THIS_MONTH'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
@@ -126,7 +126,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             </button>
             <button
               onClick={() => setDateFilter('LAST_MONTH')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
                 dateFilter === 'LAST_MONTH'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
@@ -136,7 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             </button>
           </div>
 
-          <Button variant="outline" size="sm" onClick={loadData} title="Refresh data">
+          <Button variant="outline" size="sm" onClick={loadData} title="Refresh data" className="shrink-0 min-h-[36px]">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -193,7 +193,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {accounts.map((acc) => (
             <div
               key={acc.account_id}

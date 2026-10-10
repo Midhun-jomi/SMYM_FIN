@@ -474,7 +474,72 @@ export const Login: React.FC<LoginPageProps> = ({ currentUser, setCurrentUser })
             </div>
           </div>
 
-          <div className="overflow-x-auto text-xs">
+          {/* Mobile Card View (Screens < 640px) */}
+          <div className="block sm:hidden divide-y divide-slate-100 dark:divide-slate-800">
+            {usersList.map((user) => {
+              const isCurrent = user.email.toLowerCase() === currentUser.email.toLowerCase();
+              const isLoading = actionLoading === user.user_id;
+
+              return (
+                <div key={user.user_id} className="p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-sm text-slate-900 dark:text-white">
+                        {user.display_name}
+                      </span>
+                      {isCurrent && (
+                        <span className="ml-2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                          (You)
+                        </span>
+                      )}
+                      <p className="font-mono text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge
+                        variant={user.role === 'ADMIN' ? 'emerald' : user.role === 'EDITOR' ? 'blue' : 'slate'}
+                        size="sm"
+                      >
+                        {user.role}
+                      </Badge>
+                      <Badge variant={user.status === 'ACTIVE' ? 'emerald' : 'rose'} size="sm">
+                        {user.status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {!isCurrent ? (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                      <button
+                        disabled={isLoading}
+                        onClick={() => handleToggleRole(user)}
+                        className="flex-1 py-1.5 px-2 text-xs font-semibold rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-center"
+                      >
+                        Set {user.role === 'ADMIN' ? 'Editor' : 'Admin'}
+                      </button>
+                      <button
+                        disabled={isLoading}
+                        onClick={() => handleToggleStatus(user)}
+                        className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded border transition-colors text-center ${
+                          user.status === 'ACTIVE'
+                            ? 'border-rose-200 text-rose-700 dark:border-rose-900 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                            : 'border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                        }`}
+                      >
+                        {user.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="pt-1 text-[11px] text-slate-400 dark:text-slate-500 italic text-right">
+                      Protected (Self)
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop & Tablet Table (Screens >= 640px) */}
+          <div className="hidden sm:block overflow-x-auto text-xs">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 font-semibold text-slate-600 dark:text-slate-400">

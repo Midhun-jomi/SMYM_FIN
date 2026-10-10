@@ -150,8 +150,88 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
         </div>
       </Card>
 
-      {/* Transaction Table */}
-      <Card className="p-0 overflow-hidden">
+      {/* Mobile Touch-Friendly Card View (Screens < 640px) */}
+      <div className="block sm:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <Card className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
+            No transactions match your query.
+          </Card>
+        ) : (
+          filtered.map((txn) => (
+            <Card key={txn.transaction_id} className="p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  {formatDate(txn.date)}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Badge
+                    variant={
+                      txn.type === 'INCOME' ? 'emerald' : txn.type === 'EXPENSE' ? 'rose' : 'blue'
+                    }
+                    size="sm"
+                  >
+                    {txn.type}
+                  </Badge>
+                  {txn.status === 'VOID' && (
+                    <Badge variant="rose" size="sm">VOID</Badge>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white text-sm leading-snug">
+                  {txn.description}
+                </p>
+                {txn.reference_id && (
+                  <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                    Ref: {txn.reference_id}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-[11px]">
+                  {txn.category}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400 text-[11px]">
+                  {txn.account_name || txn.account_id}
+                </span>
+                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono text-[10px]">
+                  {txn.payment_method}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span
+                  className={`text-base font-extrabold font-mono ${
+                    txn.type === 'INCOME'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : txn.type === 'EXPENSE'
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : 'text-indigo-600 dark:text-indigo-400'
+                  } ${txn.status === 'VOID' ? 'line-through opacity-50' : ''}`}
+                >
+                  {txn.type === 'INCOME' ? '+' : txn.type === 'EXPENSE' ? '-' : ''}
+                  {formatINR(txn.amount)}
+                </span>
+
+                {currentUser.role === 'ADMIN' && txn.status !== 'VOID' && (
+                  <button
+                    onClick={() => setSelectedTxnToVoid(txn)}
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-lg min-h-[36px] min-w-[36px] flex items-center justify-center transition-colors"
+                    title="Void transaction"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Desktop & Tablet Table (Screens >= 640px) */}
+      <Card className="hidden sm:block p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

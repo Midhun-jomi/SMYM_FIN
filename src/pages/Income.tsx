@@ -105,7 +105,50 @@ export const Income: React.FC<IncomePageProps> = ({ currentUser, onOpenNewTransa
         </div>
       </Card>
 
-      <Card className="p-0 overflow-hidden">
+      {/* Mobile Card View (Screens < 640px) */}
+      <div className="block sm:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <Card className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
+            No income entries found.
+          </Card>
+        ) : (
+          filtered.map((item) => (
+            <Card key={item.transaction_id} className="p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  {formatDate(item.date)}
+                </span>
+                <Badge variant="emerald" size="sm">{item.category}</Badge>
+              </div>
+
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white text-sm leading-snug">
+                  {item.description}
+                </p>
+                {item.event_name && (
+                  <span className="inline-block text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                    🎯 {item.event_name}
+                  </span>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="truncate max-w-[140px]">{item.account_name}</span>
+                  <span>•</span>
+                  <span className="font-mono text-[11px]">{item.payment_method}</span>
+                </div>
+                <span className="font-extrabold font-mono text-base text-emerald-600 dark:text-emerald-400">
+                  +{formatINR(item.amount)}
+                </span>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Desktop & Tablet Table (Screens >= 640px) */}
+      <Card className="hidden sm:block p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
