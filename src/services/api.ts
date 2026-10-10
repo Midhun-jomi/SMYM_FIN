@@ -177,29 +177,34 @@ export const api = {
       const result = await response.json();
       
       const rawTxns = Array.isArray(result.transactions) ? result.transactions : [];
-      const txns: Transaction[] = (rawTxns.length > 0 ? rawTxns : MOCK_TRANSACTIONS).map((t: Transaction) => ({
-        ...t,
-        date: normalizeDateString(t.date),
-      }));
+      const txns: Transaction[] = (rawTxns.length > 0 ? rawTxns : MOCK_TRANSACTIONS)
+        .map((t: Transaction) => ({
+          ...t,
+          date: normalizeDateString(t.date),
+        }))
+        .sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       const rawAccs = Array.isArray(result.accounts) ? result.accounts : [];
       const accs: Account[] = rawAccs.length > 0 ? rawAccs : MOCK_ACCOUNTS;
 
       const rawBills = Array.isArray(result.bills) ? result.bills : [];
-      const bills: Bill[] = rawBills.length > 0 ? rawBills : MOCK_BILLS;
+      const bills: Bill[] = (rawBills.length > 0 ? rawBills : MOCK_BILLS)
+        .sort((a: Bill, b: Bill) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
 
       const rawEvents = Array.isArray(result.events) ? result.events : [];
-      const events: EventItem[] = (rawEvents.length > 0 ? rawEvents : MOCK_EVENTS).map((ev: any) => {
-        const total_income = Number(ev.total_income) || 0;
-        const total_expense = Number(ev.total_expense) || 0;
-        return {
-          ...ev,
-          budget: Number(ev.budget) || 0,
-          total_income,
-          total_expense,
-          net_balance: total_income - total_expense,
-        };
-      });
+      const events: EventItem[] = (rawEvents.length > 0 ? rawEvents : MOCK_EVENTS)
+        .map((ev: any) => {
+          const total_income = Number(ev.total_income) || 0;
+          const total_expense = Number(ev.total_expense) || 0;
+          return {
+            ...ev,
+            budget: Number(ev.budget) || 0,
+            total_income,
+            total_expense,
+            net_balance: total_income - total_expense,
+          };
+        })
+        .sort((a: EventItem, b: EventItem) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
 
       const summary = calculateFinancialSummary(txns, accs, bills, events.length);
 
@@ -214,13 +219,21 @@ export const api = {
     } catch (err) {
       console.warn('Live Google Sheets endpoint error, falling back to cached demo data:', err);
       // Fallback gracefully so the app stays functional while showing notice
-      const txns = loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS).map((t: Transaction) => ({
-        ...t,
-        date: normalizeDateString(t.date),
-      }));
+      const txns = loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS)
+        .map((t: Transaction) => ({
+          ...t,
+          date: normalizeDateString(t.date),
+        }))
+        .sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const accs = loadStored(STORAGE_KEYS.ACCOUNTS, MOCK_ACCOUNTS);
-      const bills = loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS);
-      const events = loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS);
+      const bills = loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS)
+        .sort((a: Bill, b: Bill) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
+      const events = loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS)
+        .map((ev: any) => ({
+          ...ev,
+          net_balance: (Number(ev.total_income) || 0) - (Number(ev.total_expense) || 0),
+        }))
+        .sort((a: EventItem, b: EventItem) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
       const summary = calculateFinancialSummary(txns, accs, bills, events.length);
       return {
         summary,
@@ -235,26 +248,32 @@ export const api = {
 
   async getTransactions(): Promise<Transaction[]> {
     if (this.isMockMode()) {
-      return loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS).map((t: Transaction) => ({
-        ...t,
-        date: normalizeDateString(t.date),
-      }));
+      return loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS)
+        .map((t: Transaction) => ({
+          ...t,
+          date: normalizeDateString(t.date),
+        }))
+        .sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
     try {
       const response = await fetch(`${APPS_SCRIPT_URL}?action=getTransactions`);
       if (!response.ok) throw new Error('Failed to fetch transactions');
       const data = await response.json();
       const rawList = Array.isArray(data) && data.length > 0 ? data : MOCK_TRANSACTIONS;
-      return rawList.map((t: Transaction) => ({
-        ...t,
-        date: normalizeDateString(t.date),
-      }));
+      return rawList
+        .map((t: Transaction) => ({
+          ...t,
+          date: normalizeDateString(t.date),
+        }))
+        .sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } catch (err) {
       console.warn('Failed to fetch live transactions, using cached:', err);
-      return loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS).map((t: Transaction) => ({
-        ...t,
-        date: normalizeDateString(t.date),
-      }));
+      return loadStored(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS)
+        .map((t: Transaction) => ({
+          ...t,
+          date: normalizeDateString(t.date),
+        }))
+        .sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
   },
 
@@ -330,46 +349,51 @@ export const api = {
   },
 
   async getBills(): Promise<Bill[]> {
+    const sortLatest = (list: Bill[]) =>
+      [...list].sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
+
     if (this.isMockMode()) {
-      return loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS);
+      return sortLatest(loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS));
     }
     try {
       const response = await fetch(`${APPS_SCRIPT_URL}?action=getBills`);
       if (!response.ok) throw new Error('Failed to fetch bills');
       const data = await response.json();
-      return Array.isArray(data) ? data : [];
+      return Array.isArray(data) ? sortLatest(data) : [];
     } catch (err) {
       console.warn('Failed to fetch live bills, using cached:', err);
-      return loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS);
+      return sortLatest(loadStored(STORAGE_KEYS.BILLS, MOCK_BILLS));
     }
   },
 
   async getEvents(): Promise<EventItem[]> {
-    const normalize = (list: any[]): EventItem[] =>
-      list.map((ev) => {
-        const total_income = Number(ev.total_income) || 0;
-        const total_expense = Number(ev.total_expense) || 0;
-        return {
-          ...ev,
-          budget: Number(ev.budget) || 0,
-          total_income,
-          total_expense,
-          net_balance: total_income - total_expense,
-        };
-      });
+    const normalizeAndSort = (list: any[]): EventItem[] =>
+      list
+        .map((ev) => {
+          const total_income = Number(ev.total_income) || 0;
+          const total_expense = Number(ev.total_expense) || 0;
+          return {
+            ...ev,
+            budget: Number(ev.budget) || 0,
+            total_income,
+            total_expense,
+            net_balance: total_income - total_expense,
+          };
+        })
+        .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
 
     if (this.isMockMode()) {
-      return normalize(loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS));
+      return normalizeAndSort(loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS));
     }
     try {
       const response = await fetch(`${APPS_SCRIPT_URL}?action=getEvents`);
       if (!response.ok) throw new Error('Failed to fetch events');
       const data = await response.json();
       const list = Array.isArray(data) && data.length > 0 ? data : MOCK_EVENTS;
-      return normalize(list);
+      return normalizeAndSort(list);
     } catch (err) {
       console.warn('Failed to fetch live events, using cached:', err);
-      return normalize(loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS));
+      return normalizeAndSort(loadStored(STORAGE_KEYS.EVENTS, MOCK_EVENTS));
     }
   },
 
@@ -644,17 +668,21 @@ export const api = {
   },
 
   async getAuditLogs(): Promise<AuditLog[]> {
+    const sortLatest = (list: AuditLog[]) =>
+      [...list].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
     if (this.isMockMode()) {
-      return MOCK_AUDIT_LOGS;
+      return sortLatest(MOCK_AUDIT_LOGS);
     }
     try {
       const response = await fetch(`${APPS_SCRIPT_URL}?action=getAuditLogs`);
       if (!response.ok) throw new Error('Failed to fetch audit logs');
       const data = await response.json();
-      return Array.isArray(data) && data.length > 0 ? data : MOCK_AUDIT_LOGS;
+      const list = Array.isArray(data) && data.length > 0 ? data : MOCK_AUDIT_LOGS;
+      return sortLatest(list);
     } catch (err) {
       console.warn('Failed to fetch live audit logs, using mock:', err);
-      return MOCK_AUDIT_LOGS;
+      return sortLatest(MOCK_AUDIT_LOGS);
     }
   },
 

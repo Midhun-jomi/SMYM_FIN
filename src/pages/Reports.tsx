@@ -15,7 +15,16 @@ export const Reports: React.FC<ReportsPageProps> = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   useEffect(() => {
-    api.getAuditLogs().then(setAuditLogs).catch(console.error);
+    api
+      .getAuditLogs()
+      .then((logs) =>
+        setAuditLogs(
+          [...logs].sort(
+            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          )
+        )
+      )
+      .catch(console.error);
   }, []);
 
   return (

@@ -47,10 +47,12 @@ export const Bills: React.FC<BillsPageProps> = ({ currentUser }) => {
     (b) => (b.status === 'PENDING' || b.status === 'PARTIALLY_PAID') && isPastDate(b.due_date)
   ).length;
 
-  const filtered = bills.filter((b) => {
-    if (statusFilter === 'ALL') return true;
-    return b.status === statusFilter;
-  });
+  const filtered = bills
+    .filter((b) => {
+      if (statusFilter === 'ALL') return true;
+      return b.status === statusFilter;
+    })
+    .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
 
   const getStatusBadge = (bill: Bill) => {
     const isOverdue =

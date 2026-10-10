@@ -56,21 +56,23 @@ export const Dashboard: React.FC<DashboardProps> = () => {
     loadData();
   }, []);
 
-  // Filter transactions based on selected date filter
-  const filteredTransactions = transactions.filter((t) => {
-    if (dateFilter === 'ALL') return true;
-    const date = new Date(t.date);
-    const now = new Date();
-    if (dateFilter === 'THIS_MONTH') {
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    }
-    if (dateFilter === 'LAST_MONTH') {
-      const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-      const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-      return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
-    }
-    return true;
-  });
+  // Filter transactions based on selected date filter (latest first)
+  const filteredTransactions = transactions
+    .filter((t) => {
+      if (dateFilter === 'ALL') return true;
+      const date = new Date(t.date);
+      const now = new Date();
+      if (dateFilter === 'THIS_MONTH') {
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      }
+      if (dateFilter === 'LAST_MONTH') {
+        const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
+      }
+      return true;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const activeSummary = summary
     ? calculateFinancialSummary(filteredTransactions, accounts, bills, events.length)

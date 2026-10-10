@@ -57,15 +57,17 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
     }
   };
 
-  // Filter logic
-  const filtered = transactions.filter((t) => {
-    const matchesType = typeFilter === 'ALL' || t.type === typeFilter;
-    const matchesSearch =
-      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.reference_id && t.reference_id.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesType && matchesSearch;
-  });
+  // Filter and sort logic (latest first)
+  const filtered = transactions
+    .filter((t) => {
+      const matchesType = typeFilter === 'ALL' || t.type === typeFilter;
+      const matchesSearch =
+        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (t.reference_id && t.reference_id.toLowerCase().includes(searchTerm.toLowerCase()));
+      return matchesType && matchesSearch;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const exportCSV = () => {
     const headers = ['Transaction ID', 'Date', 'Type', 'Description', 'Category', 'Amount', 'Payment Method', 'Status'];

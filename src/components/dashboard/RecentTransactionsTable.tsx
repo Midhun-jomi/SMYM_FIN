@@ -16,7 +16,9 @@ export const RecentTransactionsTable: React.FC<RecentTransactionsTableProps> = (
   transactions,
   maxItems = 6,
 }) => {
-  const displayItems = transactions.slice(0, maxItems);
+  const displayItems = [...transactions]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, maxItems);
 
   const typeConfig = {
     INCOME: {

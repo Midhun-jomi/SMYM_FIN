@@ -32,11 +32,13 @@ export const Income: React.FC<IncomePageProps> = ({ currentUser, onOpenNewTransa
 
   const totalIncome = incomes.reduce((sum, t) => sum + t.amount, 0);
 
-  const filtered = incomes.filter(
-    (t) =>
-      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = incomes
+    .filter(
+      (t) =>
+        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.category.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="space-y-6">

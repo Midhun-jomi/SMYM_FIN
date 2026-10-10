@@ -32,11 +32,13 @@ export const Expenses: React.FC<ExpensesPageProps> = ({ currentUser, onOpenNewTr
 
   const totalExpense = expenses.reduce((sum, t) => sum + t.amount, 0);
 
-  const filtered = expenses.filter(
-    (t) =>
-      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = expenses
+    .filter(
+      (t) =>
+        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.category.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="space-y-6">

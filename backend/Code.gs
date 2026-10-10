@@ -26,6 +26,9 @@ function doGet(e) {
 
     if (action === "getTransactions") {
       const data = getSheetData(ss, SHEET_NAMES.TRANSACTIONS);
+      data.sort(function(a, b) {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
       return jsonResponse(data);
     }
 
@@ -36,6 +39,9 @@ function doGet(e) {
 
     if (action === "getBills") {
       const data = getSheetData(ss, SHEET_NAMES.BILLS);
+      data.sort(function(a, b) {
+        return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
+      });
       return jsonResponse(data);
     }
 
@@ -49,6 +55,9 @@ function doGet(e) {
         ev.net_balance = inc - exp;
         return ev;
       });
+      enhanced.sort(function(a, b) {
+        return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
+      });
       return jsonResponse(enhanced);
     }
 
@@ -59,6 +68,9 @@ function doGet(e) {
 
     if (action === "getAuditLogs") {
       const data = getSheetData(ss, SHEET_NAMES.AUDIT_LOG);
+      data.sort(function(a, b) {
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
       return jsonResponse(data);
     }
 
@@ -76,8 +88,14 @@ function doGet(e) {
 
     if (action === "getDashboard") {
       const transactions = getSheetData(ss, SHEET_NAMES.TRANSACTIONS);
+      transactions.sort(function(a, b) {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
       const accounts = getSheetData(ss, SHEET_NAMES.ACCOUNTS);
       const bills = getSheetData(ss, SHEET_NAMES.BILLS);
+      bills.sort(function(a, b) {
+        return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
+      });
       const rawEvents = getSheetData(ss, SHEET_NAMES.EVENTS);
       const events = rawEvents.map(function(ev) {
         var inc = Number(ev.total_income) || 0;
@@ -86,6 +104,9 @@ function doGet(e) {
         ev.total_expense = exp;
         ev.net_balance = inc - exp;
         return ev;
+      });
+      events.sort(function(a, b) {
+        return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
       });
 
       return jsonResponse({

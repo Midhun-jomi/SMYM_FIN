@@ -62,7 +62,9 @@ export const Events: React.FC<EventsPageProps> = ({ currentUser }) => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {events.map((ev) => {
+        {[...events]
+          .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime())
+          .map((ev) => {
           // Cross-reference linked transactions for canonical collections and disbursements
           const eventTxns = transactions.filter(
             (t) => t.event_id === ev.event_id && t.status !== 'VOID'
