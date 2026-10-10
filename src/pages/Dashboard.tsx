@@ -93,23 +93,23 @@ export const Dashboard: React.FC<DashboardProps> = () => {
       {/* Header & Date Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Society Financial Overview
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Real-time status of funds, collections, expenses, and pending liabilities.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Quick Filter Buttons */}
-          <div className="bg-white border border-slate-200 rounded-lg p-1 flex items-center shadow-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1 flex items-center shadow-xs">
             <button
               onClick={() => setDateFilter('ALL')}
               className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 dateFilter === 'ALL'
                   ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               All Time
@@ -119,7 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 dateFilter === 'THIS_MONTH'
                   ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               This Month
@@ -129,7 +129,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 dateFilter === 'LAST_MONTH'
                   ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               Last Month
@@ -183,12 +183,12 @@ export const Dashboard: React.FC<DashboardProps> = () => {
       <Card className="p-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-emerald-600" />
-            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+            <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
               Operating Accounts
             </h4>
           </div>
-          <span className="text-xs text-slate-500 font-medium">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
             3 Active Ledgers
           </span>
         </div>
@@ -197,17 +197,17 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           {accounts.map((acc) => (
             <div
               key={acc.account_id}
-              className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white transition-colors"
+              className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800/80 transition-colors"
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-slate-700 truncate max-w-[180px]">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[180px]">
                   {acc.account_name}
                 </span>
                 <Badge variant={acc.account_type === 'BANK' ? 'blue' : 'amber'} size="sm">
                   {acc.account_type}
                 </Badge>
               </div>
-              <p className="text-lg font-bold font-mono text-slate-900 mt-1">
+              <p className="text-lg font-bold font-mono text-slate-900 dark:text-white mt-1">
                 {formatINR(acc.current_balance)}
               </p>
             </div>

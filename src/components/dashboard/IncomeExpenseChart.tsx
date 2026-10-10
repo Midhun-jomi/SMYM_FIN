@@ -12,39 +12,47 @@ import {
 import { Card } from '../ui/Card';
 import { MonthlyTrend } from '../../types';
 import { formatCompactINR, formatINR } from '../../utils/currency';
+import { useTheme } from '../../context/ThemeContext';
 
 interface IncomeExpenseChartProps {
   data: MonthlyTrend[];
 }
 
 export const IncomeExpenseChart: React.FC<IncomeExpenseChartProps> = ({ data }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   return (
     <Card className="flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h4 className="text-base font-bold text-slate-900">Income vs Expenses</h4>
-          <p className="text-xs text-slate-500">Monthly comparison for current financial year</p>
+          <h4 className="text-base font-bold text-slate-900 dark:text-white">Income vs Expenses</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Monthly comparison for current financial year</p>
         </div>
       </div>
 
       <div className="h-72 w-full">
         {data.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-xs text-slate-400">
+          <div className="h-full flex items-center justify-center text-xs text-slate-400 dark:text-slate-500">
             No transaction records available to plot.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isDark ? '#1e293b' : '#f1f5f9'}
+                vertical={false}
+              />
               <XAxis
                 dataKey="month"
-                stroke="#94a3b8"
+                stroke={isDark ? '#64748b' : '#94a3b8'}
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                stroke="#94a3b8"
+                stroke={isDark ? '#64748b' : '#94a3b8'}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -53,10 +61,11 @@ export const IncomeExpenseChart: React.FC<IncomeExpenseChartProps> = ({ data }) 
               <Tooltip
                 formatter={(value: number) => [formatINR(value), '']}
                 contentStyle={{
-                  backgroundColor: '#ffffff',
+                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   borderRadius: '12px',
-                  border: '1px solid #e2e8f0',
-                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  border: isDark ? '1px solid #1e293b' : '1px solid #e2e8f0',
+                  color: isDark ? '#f1f5f9' : '#0f172a',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.3)',
                   fontSize: '12px',
                 }}
               />

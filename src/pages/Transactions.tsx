@@ -95,10 +95,10 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Transactions Registry
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Canonical ledger of all society receipts, expenditures, and inter-fund transfers.
           </p>
         </div>
@@ -122,13 +122,13 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
       <Card className="p-4">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           <div className="relative flex-1">
-            <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+            <Search className="h-4 w-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-3 pointer-events-none" />
             <input
               type="text"
               placeholder="Search by description, category, or reference..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
             />
           </div>
 
@@ -139,8 +139,8 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
                 onClick={() => setTypeFilter(t)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all whitespace-nowrap ${
                   typeFilter === t
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-slate-900 dark:bg-emerald-600 border-slate-900 dark:border-emerald-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
                 {t === 'ALL' ? 'All Types' : t}
@@ -155,7 +155,7 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+              <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-5">Date</th>
                 <th className="py-3 px-5">Description</th>
                 <th className="py-3 px-5">Category</th>
@@ -166,35 +166,35 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
                 {currentUser.role === 'ADMIN' && <th className="py-3 px-5 text-center">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={currentUser.role === 'ADMIN' ? 8 : 7} className="py-12 text-center text-xs text-slate-400">
+                  <td colSpan={currentUser.role === 'ADMIN' ? 8 : 7} className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
                     No transactions match your query.
                   </td>
                 </tr>
               ) : (
                 filtered.map((txn) => (
-                  <tr key={txn.transaction_id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap">
+                  <tr key={txn.transaction_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {formatDate(txn.date)}
                     </td>
                     <td className="py-3.5 px-5 max-w-xs">
-                      <p className="font-semibold text-slate-900 truncate">{txn.description}</p>
+                      <p className="font-semibold text-slate-900 dark:text-slate-100 truncate">{txn.description}</p>
                       {txn.reference_id && (
-                        <span className="text-[10px] text-slate-500 font-mono block">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block">
                           Ref: {txn.reference_id}
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-600 whitespace-nowrap">
+                    <td className="py-3.5 px-5 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
                       {txn.category}
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap">
+                    <td className="py-3.5 px-5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {txn.account_name || txn.account_id}
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap">
-                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono text-[11px]">
+                    <td className="py-3.5 px-5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded font-mono text-[11px]">
                         {txn.payment_method}
                       </span>
                     </td>
@@ -202,10 +202,10 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
                       <span
                         className={`font-bold font-mono ${
                           txn.type === 'INCOME'
-                            ? 'text-emerald-600'
+                            ? 'text-emerald-600 dark:text-emerald-400'
                             : txn.type === 'EXPENSE'
-                            ? 'text-rose-600'
-                            : 'text-indigo-600'
+                            ? 'text-rose-600 dark:text-rose-400'
+                            : 'text-indigo-600 dark:text-indigo-400'
                         } ${txn.status === 'VOID' ? 'line-through opacity-50' : ''}`}
                       >
                         {txn.type === 'INCOME' ? '+' : txn.type === 'EXPENSE' ? '-' : ''}
@@ -224,7 +224,7 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
                         {txn.status !== 'VOID' && (
                           <button
                             onClick={() => setSelectedTxnToVoid(txn)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-lg transition-colors"
                             title="Void transaction (Admin only)"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -248,22 +248,22 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
         description="Are you sure you want to void this entry?"
       >
         <div className="space-y-4">
-          <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 flex items-start gap-2.5">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2.5">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
             <p>
               In accordance with financial integrity rules, voiding marks the record inactive and removes its amount from balances, but keeps the record in the audit trail.
             </p>
           </div>
 
           {selectedTxnToVoid && (
-            <div className="p-3 bg-slate-50 rounded-lg text-xs space-y-1">
+            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-xs space-y-1 text-slate-800 dark:text-slate-200">
               <p><strong>Description:</strong> {selectedTxnToVoid.description}</p>
               <p><strong>Amount:</strong> {formatINR(selectedTxnToVoid.amount)}</p>
               <p><strong>Date:</strong> {formatDate(selectedTxnToVoid.date)}</p>
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             <Button variant="outline" onClick={() => setSelectedTxnToVoid(null)}>
               Cancel
             </Button>

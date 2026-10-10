@@ -67,10 +67,10 @@ export const Bills: React.FC<BillsPageProps> = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Society Bills & Liabilities
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Vendor invoices, stage contracts, sound equipment rent, and payment schedules.
           </p>
         </div>
@@ -110,8 +110,8 @@ export const Bills: React.FC<BillsPageProps> = () => {
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all whitespace-nowrap ${
               statusFilter === s
-                ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                ? 'bg-slate-900 dark:bg-emerald-600 border-slate-900 dark:border-emerald-600 text-white shadow-xs'
+                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
             }`}
           >
             {s.replace('_', ' ')}
@@ -129,28 +129,28 @@ export const Bills: React.FC<BillsPageProps> = () => {
               <div>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div>
-                    <h4 className="font-bold text-slate-900 text-base">{bill.bill_name}</h4>
-                    <p className="text-xs text-slate-500 font-medium">Vendor: {bill.vendor}</p>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-base">{bill.bill_name}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Vendor: {bill.vendor}</p>
                   </div>
                   {getStatusBadge(bill)}
                 </div>
 
-                <div className="my-4 p-3 rounded-lg bg-slate-50 border border-slate-100 space-y-2">
+                <div className="my-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Total Invoice Amount:</span>
-                    <span className="font-bold text-slate-900">{formatINR(bill.amount)}</span>
+                    <span className="text-slate-500 dark:text-slate-400">Total Invoice Amount:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{formatINR(bill.amount)}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Paid to Date:</span>
-                    <span className="font-bold text-emerald-600">{formatINR(bill.paid_amount || 0)}</span>
+                    <span className="text-slate-500 dark:text-slate-400">Paid to Date:</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatINR(bill.paid_amount || 0)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60">
-                    <span className="text-slate-700 font-semibold">Remaining Due:</span>
-                    <span className="font-bold font-mono text-amber-700">{formatINR(remaining)}</span>
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60 dark:border-slate-700">
+                    <span className="text-slate-700 dark:text-slate-300 font-semibold">Remaining Due:</span>
+                    <span className="font-bold font-mono text-amber-700 dark:text-amber-400">{formatINR(remaining)}</span>
                   </div>
 
                   {/* Progress bar */}
-                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-2">
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden mt-2">
                     <div
                       className="bg-emerald-500 h-full rounded-full transition-all"
                       style={{ width: `${percentPaid}%` }}
@@ -159,17 +159,17 @@ export const Bills: React.FC<BillsPageProps> = () => {
                 </div>
 
                 {bill.notes && (
-                  <p className="text-xs text-slate-600 italic bg-amber-50/50 p-2 rounded border border-amber-100">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 italic bg-amber-50/50 dark:bg-amber-950/40 p-2 rounded border border-amber-100 dark:border-amber-900/40">
                     "{bill.notes}"
                   </p>
                 )}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" /> Due: {formatDate(bill.due_date)}
                 </span>
-                <span className="text-slate-400 font-mono text-[11px]">{bill.category}</span>
+                <span className="text-slate-400 dark:text-slate-500 font-mono text-[11px]">{bill.category}</span>
               </div>
             </Card>
           );

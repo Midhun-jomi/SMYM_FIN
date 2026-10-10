@@ -131,7 +131,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 
         {/* Transaction Type Selector */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
             Entry Type
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -152,11 +152,11 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 className={`py-2 px-3 text-xs font-bold rounded-lg border transition-all text-center ${
                   type === t
                     ? t === 'INCOME'
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-800'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-500 dark:border-emerald-600 text-emerald-800 dark:text-emerald-300'
                       : t === 'EXPENSE'
-                      ? 'bg-rose-50 border-rose-500 text-rose-800'
-                      : 'bg-indigo-50 border-indigo-500 text-indigo-800'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-500 dark:border-rose-600 text-rose-800 dark:text-rose-300'
+                      : 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-500 dark:border-indigo-600 text-indigo-800 dark:text-indigo-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
               >
                 {t}
@@ -240,7 +240,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
           onChange={(e) => setReferenceId(e.target.value)}
         />
 
-        <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>

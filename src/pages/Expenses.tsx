@@ -42,10 +42,10 @@ export const Expenses: React.FC<ExpensesPageProps> = ({ currentUser, onOpenNewTr
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Society Expenses & Disbursements
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Tracking youth camp costs, mission initiatives, stage sound rentals, and parish activities.
           </p>
         </div>
@@ -94,13 +94,13 @@ export const Expenses: React.FC<ExpensesPageProps> = ({ currentUser, onOpenNewTr
 
       <Card className="p-4">
         <div className="relative">
-          <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+          <Search className="h-4 w-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-3 pointer-events-none" />
           <input
             type="text"
             placeholder="Search expenses by vendor, purpose, or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
           />
         </div>
       </Card>
@@ -109,7 +109,7 @@ export const Expenses: React.FC<ExpensesPageProps> = ({ currentUser, onOpenNewTr
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+              <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-5">Date</th>
                 <th className="py-3 px-5">Description</th>
                 <th className="py-3 px-5">Category</th>
@@ -118,37 +118,37 @@ export const Expenses: React.FC<ExpensesPageProps> = ({ currentUser, onOpenNewTr
                 <th className="py-3 px-5 text-right">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-xs text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
                     No expense records found.
                   </td>
                 </tr>
               ) : (
                 filtered.map((item) => (
-                  <tr key={item.transaction_id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap">
+                  <tr key={item.transaction_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {formatDate(item.date)}
                     </td>
-                    <td className="py-3.5 px-5 font-semibold text-slate-900">
+                    <td className="py-3.5 px-5 font-semibold text-slate-900 dark:text-slate-100">
                       {item.description}
                       {item.event_name && (
-                        <span className="block text-[11px] text-emerald-600 font-medium">
+                        <span className="block text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
                           🎯 {item.event_name}
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-600 whitespace-nowrap">
+                    <td className="py-3.5 px-5 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
                       <Badge variant="rose" size="sm">{item.category}</Badge>
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap">
+                    <td className="py-3.5 px-5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {item.account_name}
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-500 whitespace-nowrap font-mono">
+                    <td className="py-3.5 px-5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap font-mono">
                       {item.payment_method}
                     </td>
-                    <td className="py-3.5 px-5 text-right whitespace-nowrap font-bold font-mono text-rose-600">
+                    <td className="py-3.5 px-5 text-right whitespace-nowrap font-bold font-mono text-rose-600 dark:text-rose-400">
                       -{formatINR(item.amount)}
                     </td>
                   </tr>

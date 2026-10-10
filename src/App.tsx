@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
@@ -34,7 +35,8 @@ export function App() {
   };
 
   return (
-    <BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
       <Routes>
         <Route
           element={
@@ -104,6 +106,7 @@ export function App() {
         events={events}
       />
     </BrowserRouter>
+  </ThemeProvider>
   );
 }
 

@@ -31,9 +31,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
   ];
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200 w-64 p-4">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-64 p-4 transition-colors">
       <div className="mb-6 px-3">
-        <h6 className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+        <h6 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           Financial Management
         </h6>
       </div>
@@ -51,8 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
                 cn(
                   'flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150',
                   isActive
-                    ? 'bg-emerald-50 text-emerald-800 shadow-xs border border-emerald-200/50'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 shadow-xs border border-emerald-200/50 dark:border-emerald-800/60'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
                 )
               }
             >
@@ -61,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
                 <span>{item.label}</span>
               </div>
               {item.badge && (
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md">
+                <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded-md">
                   {item.badge}
                 </span>
               )}
@@ -71,15 +71,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
       </nav>
 
       {/* Society Quick Details Footer */}
-      <div className="mt-auto pt-4 border-t border-slate-100 px-3">
-        <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60">
-          <div className="flex items-center gap-2 mb-1 text-slate-800 font-bold text-xs">
-            <Building className="h-3.5 w-3.5 text-emerald-600" />
+      <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800 px-3">
+        <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60">
+          <div className="flex items-center gap-2 mb-1 text-slate-800 dark:text-slate-200 font-bold text-xs">
+            <Building className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>SMYM Youth Unit</span>
           </div>
-          <p className="text-[11px] text-slate-500 leading-tight">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
             Financial Year 2026-2027<br />
-            Currency: <span className="font-semibold text-slate-700">INR (₹)</span>
+            Currency: <span className="font-semibold text-slate-700 dark:text-slate-300">INR (₹)</span>
           </p>
         </div>
       </div>
@@ -97,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
             onClick={onCloseMobile}
           />
           <div className="relative z-50 h-full">

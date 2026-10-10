@@ -36,7 +36,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] flex flex-col text-slate-900 dark:text-slate-100 transition-colors">
       <DemoBanner
         currentUser={currentUser}
         onRoleChange={handleRoleChange}
@@ -61,12 +61,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         </main>
       </div>
 
-      <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
-            © {new Date().getFullYear()} <span className="font-semibold text-slate-700">SMYM FIN</span> — Church Society Financial Transparency & Management.
+            © {new Date().getFullYear()} <span className="font-semibold text-slate-700 dark:text-slate-200">SMYM FIN</span> — Church Society Financial Transparency & Management.
           </p>
-          <p className="text-slate-600">
+          <p className="text-slate-600 dark:text-slate-400">
             All records validated with single source of truth standards.
           </p>
         </div>

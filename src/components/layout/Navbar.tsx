@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { User } from '../../types';
 
 interface NavbarProps {
@@ -25,7 +26,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   mobileMenuOpen,
   setMobileMenuOpen,
 }) => {
-
   const roleBadges = {
     PUBLIC_VIEWER: <Badge variant="slate" size="sm">Viewer (Public)</Badge>,
     EDITOR: <Badge variant="blue" size="sm">Editor</Badge>,
@@ -33,14 +33,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Product Name */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+              className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors"
               aria-label="Toggle Navigation"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -51,10 +51,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Coins className="h-5 w-5" />
               </div>
               <div className="flex flex-col">
-                <span className="font-extrabold text-lg text-slate-900 tracking-tight leading-tight group-hover:text-emerald-700 transition-colors">
-                  SMYM <span className="text-emerald-600 font-black">FIN</span>
+                <span className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  SMYM <span className="text-emerald-600 dark:text-emerald-400 font-black">FIN</span>
                 </span>
-                <span className="text-[10px] font-semibold text-slate-600 tracking-wider uppercase">
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tracking-wider uppercase">
                   Parish Finance System
                 </span>
               </div>
@@ -62,10 +62,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Quick Header Right Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Theme Toggle Button */}
+            <ThemeToggle />
+
             {/* User Role & Identity */}
-            <div className="hidden sm:flex items-center gap-2 border-r border-slate-200 pr-3">
-              <span className="text-xs text-slate-500 font-medium">{currentUser.display_name}</span>
+            <div className="hidden sm:flex items-center gap-2 border-r border-slate-200 dark:border-slate-800 pr-3">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">{currentUser.display_name}</span>
               {roleBadges[currentUser.role]}
             </div>
 
@@ -91,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {currentUser.role !== 'PUBLIC_VIEWER' && (
               <Link to="/login" title="Account / Switch Role">
-                <button className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                <button className="p-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                   <Shield className="h-4 w-4" />
                 </button>
               </Link>
