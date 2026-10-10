@@ -77,8 +77,8 @@ export const api = {
   async loginWithPasscode(email: string, role: UserRole, passcode: string): Promise<User> {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = passcode.trim();
-    const validAdminCode = import.meta.env.VITE_ADMIN_PASSCODE || 'SMYM2026!';
-    const validEditorCode = import.meta.env.VITE_EDITOR_PASSCODE || 'SMYM123';
+    const validAdminCode = import.meta.env.VITE_ADMIN_PASSCODE || 'SMYM26';
+    const validEditorCode = import.meta.env.VITE_EDITOR_PASSCODE || 'SMYM26';
 
     if (this.isMockMode()) {
       const isPassValid =

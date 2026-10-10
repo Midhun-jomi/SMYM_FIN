@@ -224,8 +224,8 @@ function getSetting(ss, key, defaultValue) {
 function verifyPasscode(ss, role, passcode) {
   if (!passcode) return false;
   const cleanPass = passcode.toString().trim();
-  const adminPass = getSetting(ss, "ADMIN_PASSCODE", "SMYM2026!");
-  const editorPass = getSetting(ss, "EDITOR_PASSCODE", "SMYM123");
+  const adminPass = getSetting(ss, "ADMIN_PASSCODE", "SMYM26");
+  const editorPass = getSetting(ss, "EDITOR_PASSCODE", "SMYM26");
 
   if (role === "ADMIN") {
     return cleanPass === adminPass;
@@ -797,8 +797,8 @@ function seedUsersIfEmpty(ss) {
 function seedSettingsIfEmpty(ss) {
   const settingsSheet = ss.getSheetByName(SHEET_NAMES.SETTINGS);
   if (settingsSheet && settingsSheet.getLastRow() <= 1) {
-    settingsSheet.appendRow(["ADMIN_PASSCODE", "SMYM2026!", "Master passcode for parish director/treasurer admin privileges"]);
-    settingsSheet.appendRow(["EDITOR_PASSCODE", "SMYM123", "Passcode for youth society editors to record entries"]);
+    settingsSheet.appendRow(["ADMIN_PASSCODE", "SMYM26", "Master passcode for parish director/treasurer admin privileges"]);
+    settingsSheet.appendRow(["EDITOR_PASSCODE", "SMYM26", "Passcode for youth society editors to record entries"]);
     settingsSheet.appendRow(["SOCIETY_NAME", "SMYM Youth Society", "Official parish youth society title"]);
   }
 }
