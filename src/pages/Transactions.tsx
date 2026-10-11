@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
   Trash2,
@@ -58,16 +58,21 @@ export const Transactions: React.FC<TransactionsPageProps> = ({
   };
 
   // Filter and sort logic (latest first)
-  const filtered = transactions
-    .filter((t) => {
-      const matchesType = typeFilter === 'ALL' || t.type === typeFilter;
-      const matchesSearch =
-        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (t.reference_id && t.reference_id.toLowerCase().includes(searchTerm.toLowerCase()));
-      return matchesType && matchesSearch;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filtered = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase().trim();
+    return transactions
+      .filter((t) => {
+        const matchesType = typeFilter === 'ALL' || t.type === typeFilter;
+        if (!matchesType) return false;
+        if (!searchLower) return true;
+        return (
+          t.description.toLowerCase().includes(searchLower) ||
+          t.category.toLowerCase().includes(searchLower) ||
+          (t.reference_id && t.reference_id.toLowerCase().includes(searchLower))
+        );
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, typeFilter, searchTerm]);
 
   const exportCSV = () => {
     const headers = ['Transaction ID', 'Date', 'Type', 'Description', 'Category', 'Amount', 'Payment Method', 'Status'];

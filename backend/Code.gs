@@ -87,6 +87,14 @@ function doGet(e) {
     }
 
     if (action === "getDashboard") {
+      try {
+        var scriptCache = CacheService.getScriptCache();
+        var cached = scriptCache.get("SMYM_DASHBOARD_JSON");
+        if (cached) {
+          return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+        }
+      } catch (cacheErr) {}
+
       const transactions = getSheetData(ss, SHEET_NAMES.TRANSACTIONS);
       transactions.sort(function(a, b) {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -109,12 +117,21 @@ function doGet(e) {
         return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
       });
 
-      return jsonResponse({
+      const responseObj = {
         transactions,
         accounts,
         bills,
         events,
-      });
+      };
+      const jsonStr = JSON.stringify(responseObj);
+      if (jsonStr.length < 95000) {
+        try {
+          var scriptCache = CacheService.getScriptCache();
+          scriptCache.put("SMYM_DASHBOARD_JSON", jsonStr, 60);
+        } catch (err) {}
+      }
+
+      return ContentService.createTextOutput(jsonStr).setMimeType(ContentService.MimeType.JSON);
     }
 
     // Support GET-based mutation fallback
@@ -761,6 +778,17 @@ function recordAudit(ss, actor, action, entityType, entityId, details) {
     entityId,
     details
   ]);
+  invalidateBackendCache();
+}
+
+/**
+ * Clears script cache on write operations
+ */
+function invalidateBackendCache() {
+  try {
+    var scriptCache = CacheService.getScriptCache();
+    scriptCache.remove("SMYM_DASHBOARD_JSON");
+  } catch (err) {}
 }
 
 /**

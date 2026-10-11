@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, AlertCircle, Calendar, AlertTriangle, PlusCircle, CreditCard } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -39,20 +39,26 @@ export const Bills: React.FC<BillsPageProps> = ({ currentUser }) => {
     fetchAllData();
   }, []);
 
-  const totalOutstanding = bills
-    .filter((b) => b.status === 'PENDING' || b.status === 'PARTIALLY_PAID' || b.status === 'OVERDUE')
-    .reduce((sum, b) => sum + (b.amount - (b.paid_amount || 0)), 0);
+  const totalOutstanding = useMemo(() => {
+    return bills
+      .filter((b) => b.status === 'PENDING' || b.status === 'PARTIALLY_PAID' || b.status === 'OVERDUE')
+      .reduce((sum, b) => sum + (b.amount - (b.paid_amount || 0)), 0);
+  }, [bills]);
 
-  const overdueCount = bills.filter(
-    (b) => (b.status === 'PENDING' || b.status === 'PARTIALLY_PAID') && isPastDate(b.due_date)
-  ).length;
+  const overdueCount = useMemo(() => {
+    return bills.filter(
+      (b) => (b.status === 'PENDING' || b.status === 'PARTIALLY_PAID') && isPastDate(b.due_date)
+    ).length;
+  }, [bills]);
 
-  const filtered = bills
-    .filter((b) => {
-      if (statusFilter === 'ALL') return true;
-      return b.status === statusFilter;
-    })
-    .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
+  const filtered = useMemo(() => {
+    return bills
+      .filter((b) => {
+        if (statusFilter === 'ALL') return true;
+        return b.status === statusFilter;
+      })
+      .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
+  }, [bills, statusFilter]);
 
   const getStatusBadge = (bill: Bill) => {
     const isOverdue =

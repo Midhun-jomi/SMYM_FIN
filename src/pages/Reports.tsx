@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck,
   Printer,
@@ -57,10 +57,19 @@ export const Reports: React.FC<ReportsPageProps> = () => {
     loadReportData();
   }, []);
 
-  const totalIncome = summary?.totalIncome || transactions.filter((t) => t.type === 'INCOME' && t.status !== 'VOID').reduce((s, t) => s + t.amount, 0);
-  const totalExpense = summary?.totalExpenses || transactions.filter((t) => t.type === 'EXPENSE' && t.status !== 'VOID').reduce((s, t) => s + t.amount, 0);
-  const netSurplus = totalIncome - totalExpense;
-  const availableBalance = summary?.availableBalance || accounts.reduce((s, a) => s + a.current_balance, 0);
+  const totalIncome = useMemo(() => {
+    return summary?.totalIncome || transactions.filter((t) => t.type === 'INCOME' && t.status !== 'VOID').reduce((s, t) => s + t.amount, 0);
+  }, [summary, transactions]);
+
+  const totalExpense = useMemo(() => {
+    return summary?.totalExpenses || transactions.filter((t) => t.type === 'EXPENSE' && t.status !== 'VOID').reduce((s, t) => s + t.amount, 0);
+  }, [summary, transactions]);
+
+  const netSurplus = useMemo(() => totalIncome - totalExpense, [totalIncome, totalExpense]);
+
+  const availableBalance = useMemo(() => {
+    return summary?.availableBalance || accounts.reduce((s, a) => s + a.current_balance, 0);
+  }, [summary, accounts]);
 
   const currentDateFormatted = new Date().toLocaleDateString('en-IN', {
     day: '2-digit',

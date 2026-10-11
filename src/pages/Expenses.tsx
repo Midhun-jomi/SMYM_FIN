@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowUpRight, PlusCircle, Search, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -30,15 +30,20 @@ export const Expenses: React.FC<ExpensesPageProps> = ({ currentUser, onOpenNewTr
     fetchExpenses();
   }, []);
 
-  const totalExpense = expenses.reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = useMemo(() => expenses.reduce((sum, t) => sum + t.amount, 0), [expenses]);
 
-  const filtered = expenses
-    .filter(
-      (t) =>
-        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.category.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filtered = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase().trim();
+    return expenses
+      .filter((t) => {
+        if (!searchLower) return true;
+        return (
+          t.description.toLowerCase().includes(searchLower) ||
+          t.category.toLowerCase().includes(searchLower)
+        );
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [expenses, searchTerm]);
 
   return (
     <div className="space-y-6">

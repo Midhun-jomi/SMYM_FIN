@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -57,29 +57,33 @@ export const Dashboard: React.FC<DashboardProps> = () => {
   }, []);
 
   // Filter transactions based on selected date filter (latest first)
-  const filteredTransactions = transactions
-    .filter((t) => {
-      if (dateFilter === 'ALL') return true;
-      const date = new Date(t.date);
-      const now = new Date();
-      if (dateFilter === 'THIS_MONTH') {
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-      }
-      if (dateFilter === 'LAST_MONTH') {
-        const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-        const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-        return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
-      }
-      return true;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filteredTransactions = useMemo(() => {
+    return transactions
+      .filter((t) => {
+        if (dateFilter === 'ALL') return true;
+        const date = new Date(t.date);
+        const now = new Date();
+        if (dateFilter === 'THIS_MONTH') {
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        }
+        if (dateFilter === 'LAST_MONTH') {
+          const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+          const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+          return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, dateFilter]);
 
-  const activeSummary = summary
-    ? calculateFinancialSummary(filteredTransactions, accounts, bills, events.length)
-    : null;
+  const activeSummary = useMemo(() => {
+    return summary
+      ? calculateFinancialSummary(filteredTransactions, accounts, bills, events.length)
+      : null;
+  }, [summary, filteredTransactions, accounts, bills, events.length]);
 
-  const monthlyTrends = calculateMonthlyTrends(filteredTransactions);
-  const expenseCategories = calculateExpenseCategories(filteredTransactions);
+  const monthlyTrends = useMemo(() => calculateMonthlyTrends(filteredTransactions), [filteredTransactions]);
+  const expenseCategories = useMemo(() => calculateExpenseCategories(filteredTransactions), [filteredTransactions]);
 
   if (loading) {
     return (
