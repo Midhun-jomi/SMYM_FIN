@@ -111,33 +111,30 @@ export const Reports: React.FC<ReportsPageProps> = () => {
       <div className="no-print flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
         <button
           onClick={() => setActiveTab('STATEMENT')}
-          className={`pb-3 px-1 min-h-[44px] flex items-center gap-1.5 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
-            activeTab === 'STATEMENT'
+          className={`pb-3 px-1 min-h-[44px] flex items-center gap-1.5 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${activeTab === 'STATEMENT'
               ? 'border-emerald-600 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
               : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
+            }`}
         >
           <FileText className="h-4 w-4" />
           Official Financial Statement
         </button>
         <button
           onClick={() => setActiveTab('GOVERNANCE')}
-          className={`pb-3 px-1 min-h-[44px] flex items-center gap-1.5 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
-            activeTab === 'GOVERNANCE'
+          className={`pb-3 px-1 min-h-[44px] flex items-center gap-1.5 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${activeTab === 'GOVERNANCE'
               ? 'border-emerald-600 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
               : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
+            }`}
         >
           <ShieldCheck className="h-4 w-4" />
           Governance Policies
         </button>
         <button
           onClick={() => setActiveTab('AUDIT')}
-          className={`pb-3 px-1 min-h-[44px] text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            activeTab === 'AUDIT'
+          className={`pb-3 px-1 min-h-[44px] text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'AUDIT'
               ? 'border-emerald-600 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
               : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
+            }`}
         >
           <History className="h-4 w-4" />
           Audit Trail Log
@@ -159,7 +156,7 @@ export const Reports: React.FC<ReportsPageProps> = () => {
                 SYRO-MALABAR YOUTH MOVEMENT (SMYM)
               </h2>
               <p className="text-sm font-bold text-slate-700 dark:text-slate-300 print:text-slate-800 uppercase tracking-wide">
-                St. Thomas Forane Church • Arunapuram Unit
+                St. Thomas Church • Arunapuram Unit
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 print:text-slate-600">
                 Diocese of Pala, Kerala • Society Registration & Financial Ledger
@@ -470,8 +467,8 @@ export const Reports: React.FC<ReportsPageProps> = () => {
                         log.action === 'CREATE'
                           ? 'emerald'
                           : log.action === 'VOID'
-                          ? 'rose'
-                          : 'blue'
+                            ? 'rose'
+                            : 'blue'
                       }
                       size="sm"
                     >
@@ -532,8 +529,8 @@ export const Reports: React.FC<ReportsPageProps> = () => {
                             log.action === 'CREATE'
                               ? 'emerald'
                               : log.action === 'VOID'
-                              ? 'rose'
-                              : 'blue'
+                                ? 'rose'
+                                : 'blue'
                           }
                           size="sm"
                         >
